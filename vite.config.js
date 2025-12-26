@@ -7,12 +7,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      // ADD 'SC-LOGO-RBG.png' HERE SO IT CACHES OFFLINE
+      includeAssets: ['SC-LOGO-RBG.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Salpointe Catholic Prayers',
         short_name: 'SC Prayers',
         description: 'Daily prayer companion for Salpointe classrooms',
-        theme_color: '#97233F', // Salpointe Maroon
+        theme_color: '#97233F',
         background_color: '#1a1a1a',
         display: 'standalone',
         orientation: 'landscape',
@@ -28,12 +29,6 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
           }
         ]
       }
