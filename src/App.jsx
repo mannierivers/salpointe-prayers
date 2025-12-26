@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import confetti from 'canvas-confetti';
 import { PRAYERS } from './data/prayers';
 import { getSaint } from './data/saints';
-import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Check } from 'lucide-react';
+import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
@@ -11,6 +11,10 @@ import { doc, getDoc, setDoc, onSnapshot, updateDoc, increment } from 'firebase/
 function App() {
   // --- STATE ---
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // UPDATED: Weather is now an object holding current, high, and low
+  const [weather, setWeather] = useState(null); 
+  
   const [user, setUser] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
   const [classroomCourses, setClassroomCourses] = useState([]);
@@ -44,7 +48,32 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // --- LISTENERS ---
+  // --- WEATHER LISTENER (Tucson) ---
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        // Updated URL: Asks for Current Temp AND Daily Max/Min
+        const response = await fetch(
+          "https://api.open-meteo.com/v1/forecast?latitude=32.254&longitude=-110.945&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto"
+        );
+        const data = await response.json();
+        
+        setWeather({
+          current: Math.round(data.current.temperature_2m),
+          high: Math.round(data.daily.temperature_2m_max[0]),
+          low: Math.round(data.daily.temperature_2m_min[0])
+        });
+      } catch (error) {
+        console.error("Error fetching weather:", error);
+      }
+    };
+
+    fetchWeather();
+    const weatherTimer = setInterval(fetchWeather, 900000); // 15 mins
+    return () => clearInterval(weatherTimer);
+  }, []);
+
+  // --- FIREBASE LISTENERS ---
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -119,7 +148,6 @@ function App() {
   };
 
   const handleAmen = async () => {
-    // UPDATED CONFETTI COLORS: Maroon, Gold, Blue, White
     confetti({ particleCount: 200, spread: 120, origin: { y: 0.7 }, colors: ['#97233F', '#FBBF39', '#0098DB', '#FFFFFF'] });
     const globalRef = doc(db, "stats", "school");
     try { await updateDoc(globalRef, { totalPrayers: increment(1) }); } catch (e) { await setDoc(globalRef, { totalPrayers: 1 }); }
@@ -187,9 +215,26 @@ function App() {
           </div>
           
           <div className="flex items-center gap-6">
+            
+            {/* UPDATED WEATHER DISPLAY */}
             <div className="hidden lg:flex flex-col items-end mr-4">
-               <div className="flex items-center gap-2 text-[#FBBF39]"><Sun size={32} /><span className="text-3xl font-bold text-white">72°F</span></div>
-               <span className="text-sm text-gray-500">Tucson, AZ</span>
+               {weather ? (
+                 <>
+                   <div className="flex items-center gap-2 text-[#FBBF39]">
+                      <Sun size={32} />
+                      <span className="text-4xl font-bold text-white tracking-tight">{weather.current}°</span>
+                   </div>
+                   <div className="flex gap-3 text-xs font-bold mt-1">
+                      <span className="text-[#FBBF39] flex items-center gap-1"><ArrowUp size={12}/> H: {weather.high}°</span>
+                      <span className="text-[#0098DB] flex items-center gap-1"><ArrowDown size={12}/> L: {weather.low}°</span>
+                   </div>
+                 </>
+               ) : (
+                 <div className="flex items-center gap-2 text-[#FBBF39]">
+                    <Sun size={32} />
+                    <Loader2 className="animate-spin text-white" />
+                 </div>
+               )}
             </div>
 
             {user ? (
@@ -207,7 +252,7 @@ function App() {
           </div>
         </div>
 
-        {/* 2. MAIN PRAYER CARD - Gradient from Primary Maroon to Dark Maroon */}
+        {/* 2. MAIN PRAYER CARD */}
         <div className="col-span-12 md:col-span-8 row-span-4 md:row-span-5 bg-gradient-to-br from-[#97233F] to-[#780A1E] rounded-3xl p-6 md:p-10 flex flex-col shadow-2xl relative border-4 border-[#2d2d2d]">
           <div className="absolute top-8 left-8 bg-[#FBBF39] text-[#780A1E] text-sm md:text-base font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">
             {displayDay} {timeOfDay}
@@ -242,17 +287,16 @@ function App() {
                       <Wand2 size={20} />
                   </button>
                 </div>
-                <button onClick={handleAmen} className="w-full bg-[#FBBF39] hover:bg-white text-[#780A1E] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">PRAY FOR US</button>
+                <button onClick={handleAmen} className="w-full bg-[#FBBF39] hover:bg-white text-[#780A1E] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">AMEN</button>
             </div>
           </div>
         </div>
 
         {/* 3. SIDEBAR */}
         <div className="hidden md:flex col-span-4 row-span-5 flex-col gap-4">
-          {/* SCHOOL UNITY - Now uses Salpointe Blue */}
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] border-t-4 border-[#0098DB] shadow-lg flex flex-col justify-center relative overflow-hidden">
              <Globe className="absolute right-4 top-4 text-white/5 w-24 h-24" />
-             <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">Pray for us</h3>
+             <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">School-Wide Unity</h3>
              <div className="text-5xl font-bold text-[#0098DB] z-10">{globalCount.toLocaleString()}</div>
              <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe this year</div>
           </div>
@@ -275,7 +319,7 @@ function App() {
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#97233F] shadow-lg relative overflow-hidden group">
             <Heart className="absolute -right-4 -bottom-4 text-[#97233F]/20 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
             <div className="relative z-10">
-              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Loving Memory Of</h3>
+              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Memory Of</h3>
               <p className="text-xl font-serif text-white">Deacon Scott Pickett</p>
             </div>
           </div>
@@ -314,7 +358,6 @@ function App() {
                     </div>
                     {classroomCourses.length === 0 ? (
                         <button type="button" onClick={fetchClassroomCourses} disabled={!accessToken || loadingCourses}
-                          // Uses Salpointe Blue for action buttons
                           className="w-full bg-[#0098DB]/20 text-[#0098DB] hover:bg-[#0098DB]/40 py-2 rounded-lg text-sm font-bold transition flex justify-center items-center gap-2">
                             {loadingCourses ? <Loader2 className="animate-spin" size={16} /> : "Find My Classes"}
                         </button>
