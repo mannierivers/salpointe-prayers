@@ -298,7 +298,7 @@ function App() {
              <Globe className="absolute right-4 top-4 text-white/5 w-24 h-24" />
              <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">School-Wide Unity</h3>
              <div className="text-5xl font-bold text-[#0098DB] z-10">{globalCount.toLocaleString()}</div>
-             <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe this year</div>
+             <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe since Jan 7, 2026</div>
           </div>
 
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[2] border-t-4 border-[#FBBF39] shadow-lg flex flex-col">
@@ -319,7 +319,7 @@ function App() {
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#97233F] shadow-lg relative overflow-hidden group">
             <Heart className="absolute -right-4 -bottom-4 text-[#97233F]/20 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
             <div className="relative z-10">
-              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Memory Of</h3>
+              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Loving Memory Of</h3>
               <p className="text-xl font-serif text-white">Deacon Scott Pickett</p>
             </div>
           </div>
