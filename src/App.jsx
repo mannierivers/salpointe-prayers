@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import confetti from 'canvas-confetti';
 import { PRAYERS } from './data/prayers';
 import { getSaint } from './data/saints';
-import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Users, Check } from 'lucide-react';
+import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Check } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
@@ -119,7 +119,8 @@ function App() {
   };
 
   const handleAmen = async () => {
-    confetti({ particleCount: 200, spread: 120, origin: { y: 0.7 }, colors: ['#800000', '#FFD700', '#FFFFFF'] });
+    // UPDATED CONFETTI COLORS: Maroon, Gold, Blue, White
+    confetti({ particleCount: 200, spread: 120, origin: { y: 0.7 }, colors: ['#97233F', '#FBBF39', '#0098DB', '#FFFFFF'] });
     const globalRef = doc(db, "stats", "school");
     try { await updateDoc(globalRef, { totalPrayers: increment(1) }); } catch (e) { await setDoc(globalRef, { totalPrayers: 1 }); }
 
@@ -162,59 +163,58 @@ function App() {
   const topLeaders = Object.entries(settings.leaderboard || {}).sort(([, a], [, b]) => b - a).slice(0, 4);
 
   return (
-    <div className="h-screen w-screen bg-[#1a1a1a] text-white overflow-hidden font-sans selection:bg-[#800000] selection:text-white">
+    <div className="h-screen w-screen bg-[#1a1a1a] text-white overflow-hidden font-sans selection:bg-[#97233F] selection:text-white">
       <div className="grid grid-cols-12 grid-rows-6 h-full p-4 gap-4 md:p-6 md:gap-6">
 
-        {/* 1. TOP HEADER - NOW WITH LOGO */}
-        <div className="col-span-12 row-span-1 flex justify-between items-center bg-[#2d2d2d] rounded-2xl p-4 md:p-6 shadow-xl border-l-8 border-[#FFD700]">
+        {/* 1. TOP HEADER */}
+        <div className="col-span-12 row-span-1 flex justify-between items-center bg-[#2d2d2d] rounded-2xl p-4 md:p-6 shadow-xl border-l-8 border-[#FBBF39]">
           
           <div className="flex items-center gap-6">
-            {/* SCHOOL LOGO ADDED HERE */}
             <img 
-                src="/SC-LOGO-RGB.png" 
+                src="/SC-LOGO-RBG.png" 
                 alt="Salpointe Logo" 
                 className="h-20 w-auto object-contain drop-shadow-lg hidden md:block" 
             />
             
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-[#FFD700] tracking-wider drop-shadow-md">{format(currentDate, 'h:mm a')}</h1>
+              <h1 className="text-4xl md:text-5xl font-bold text-[#FBBF39] tracking-wider drop-shadow-md">{format(currentDate, 'h:mm a')}</h1>
               <div className="flex items-center gap-3 mt-1">
                   <p className="text-gray-400 text-lg md:text-xl font-medium">{format(currentDate, 'EEEE, MMMM do')}</p>
                   <span className="hidden md:inline text-gray-600">•</span>
-                  <p className="hidden md:block text-[#FFD700]/80 italic font-serif">Feast of {todaySaint}</p>
+                  <p className="hidden md:block text-[#FBBF39]/80 italic font-serif">Feast of {todaySaint}</p>
               </div>
             </div>
           </div>
           
           <div className="flex items-center gap-6">
             <div className="hidden lg:flex flex-col items-end mr-4">
-               <div className="flex items-center gap-2 text-yellow-500"><Sun size={32} /><span className="text-3xl font-bold text-white">72°F</span></div>
+               <div className="flex items-center gap-2 text-[#FBBF39]"><Sun size={32} /><span className="text-3xl font-bold text-white">72°F</span></div>
                <span className="text-sm text-gray-500">Tucson, AZ</span>
             </div>
 
             {user ? (
-              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 bg-[#800000] hover:bg-[#600000] px-4 py-2 md:px-6 md:py-3 rounded-xl transition shadow-lg border border-[#FFD700]/30">
-                {user.photoURL && <img src={user.photoURL} className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#FFD700]" alt="Profile" />}
+              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 bg-[#97233F] hover:bg-[#780A1E] px-4 py-2 md:px-6 md:py-3 rounded-xl transition shadow-lg border border-[#FBBF39]/30">
+                {user.photoURL && <img src={user.photoURL} className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#FBBF39]" alt="Profile" />}
                 <div className="text-left hidden lg:block">
-                  <div className="font-bold text-[#FFD700] leading-tight">{settings.teacherName}</div>
+                  <div className="font-bold text-[#FBBF39] leading-tight">{settings.teacherName}</div>
                   <div className="text-xs text-white/80">Class XP: {settings.xp}</div>
                 </div>
-                <SettingsIcon size={20} className="text-[#FFD700] ml-2" />
+                <SettingsIcon size={20} className="text-[#FBBF39] ml-2" />
               </button>
             ) : (
-              <button onClick={handleLogin} className="bg-[#800000] hover:bg-[#600000] text-[#FFD700] px-6 py-3 rounded-xl font-bold text-lg md:text-xl border-2 border-[#FFD700]">Login</button>
+              <button onClick={handleLogin} className="bg-[#97233F] hover:bg-[#780A1E] text-[#FBBF39] px-6 py-3 rounded-xl font-bold text-lg md:text-xl border-2 border-[#FBBF39]">Login</button>
             )}
           </div>
         </div>
 
-        {/* 2. MAIN PRAYER CARD */}
-        <div className="col-span-12 md:col-span-8 row-span-4 md:row-span-5 bg-gradient-to-br from-[#800000] to-[#500000] rounded-3xl p-6 md:p-10 flex flex-col shadow-2xl relative border-4 border-[#2d2d2d]">
-          <div className="absolute top-8 left-8 bg-[#FFD700] text-[#800000] text-sm md:text-base font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">
+        {/* 2. MAIN PRAYER CARD - Gradient from Primary Maroon to Dark Maroon */}
+        <div className="col-span-12 md:col-span-8 row-span-4 md:row-span-5 bg-gradient-to-br from-[#97233F] to-[#780A1E] rounded-3xl p-6 md:p-10 flex flex-col shadow-2xl relative border-4 border-[#2d2d2d]">
+          <div className="absolute top-8 left-8 bg-[#FBBF39] text-[#780A1E] text-sm md:text-base font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">
             {displayDay} {timeOfDay}
           </div>
 
           <div className="flex-1 flex flex-col justify-center items-center w-full text-center mt-8">
-            <h2 className="text-3xl md:text-5xl font-serif mb-6 text-[#FFD700] drop-shadow-lg">{currentPrayer.title}</h2>
+            <h2 className="text-3xl md:text-5xl font-serif mb-6 text-[#FBBF39] drop-shadow-lg">{currentPrayer.title}</h2>
             <p className="text-lg md:text-3xl leading-relaxed text-white font-medium drop-shadow-md max-w-4xl">"{currentPrayer.text}"</p>
           </div>
 
@@ -229,52 +229,53 @@ function App() {
                </div>
                <form onSubmit={addIntention} className="relative">
                   <input type="text" placeholder="Add prayer intention..." value={newIntention} onChange={(e) => setNewIntention(e.target.value)}
-                    className="w-full bg-black/20 text-sm border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/30 outline-none focus:border-[#FFD700]" />
-                  <button type="submit" className="absolute right-2 top-2 text-[#FFD700]"><Plus size={16}/></button>
+                    className="w-full bg-black/20 text-sm border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/30 outline-none focus:border-[#FBBF39]" />
+                  <button type="submit" className="absolute right-2 top-2 text-[#FBBF39]"><Plus size={16}/></button>
                </form>
             </div>
 
             <div className="flex-1 flex flex-col gap-3 w-full md:w-auto max-w-md">
                 <div className="relative flex gap-2">
                   <input type="text" placeholder="Leader" value={leaderName} onChange={(e) => setLeaderName(e.target.value)}
-                    className="flex-1 bg-white/10 border border-white/20 focus:border-[#FFD700] rounded-full py-2 px-4 text-white placeholder-white/50 text-center font-bold outline-none" />
-                  <button onClick={pickRandomStudent} className="bg-[#FFD700] p-2 rounded-full text-[#800000] hover:bg-white hover:scale-110 transition" title="Pick Random Student">
+                    className="flex-1 bg-white/10 border border-white/20 focus:border-[#FBBF39] rounded-full py-2 px-4 text-white placeholder-white/50 text-center font-bold outline-none" />
+                  <button onClick={pickRandomStudent} className="bg-[#FBBF39] p-2 rounded-full text-[#780A1E] hover:bg-white hover:scale-110 transition" title="Pick Random Student">
                       <Wand2 size={20} />
                   </button>
                 </div>
-                <button onClick={handleAmen} className="w-full bg-[#FFD700] hover:bg-white text-[#800000] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">AMEN</button>
+                <button onClick={handleAmen} className="w-full bg-[#FBBF39] hover:bg-white text-[#780A1E] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">PRAY FOR US</button>
             </div>
           </div>
         </div>
 
         {/* 3. SIDEBAR */}
         <div className="hidden md:flex col-span-4 row-span-5 flex-col gap-4">
-          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] border-t-4 border-green-500 shadow-lg flex flex-col justify-center relative overflow-hidden">
+          {/* SCHOOL UNITY - Now uses Salpointe Blue */}
+          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] border-t-4 border-[#0098DB] shadow-lg flex flex-col justify-center relative overflow-hidden">
              <Globe className="absolute right-4 top-4 text-white/5 w-24 h-24" />
-             <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">School-Wide Unity</h3>
-             <div className="text-5xl font-bold text-green-400 z-10">{globalCount.toLocaleString()}</div>
+             <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">Pray for us</h3>
+             <div className="text-5xl font-bold text-[#0098DB] z-10">{globalCount.toLocaleString()}</div>
              <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe this year</div>
           </div>
 
-          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[2] border-t-4 border-blue-500 shadow-lg flex flex-col">
+          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[2] border-t-4 border-[#FBBF39] shadow-lg flex flex-col">
             <div className="flex items-center gap-3 mb-4">
-              <Trophy className="text-[#FFD700]" size={24} />
+              <Trophy className="text-[#FBBF39]" size={24} />
               <h3 className="text-gray-300 uppercase text-sm font-bold tracking-widest">Class Leaders</h3>
             </div>
             <div className="space-y-3 overflow-y-auto">
                 {topLeaders.map(([name, count], index) => (
                   <div key={name} className="flex items-center justify-between bg-[#1a1a1a] p-2 px-3 rounded-lg border border-white/5">
-                    <div className="flex items-center gap-3"><span className={`font-bold w-4 text-center ${index === 0 ? 'text-[#FFD700]' : 'text-gray-500'}`}>#{index + 1}</span><span className="text-white font-medium">{name}</span></div>
-                    <div className="text-blue-400 font-bold">{count}</div>
+                    <div className="flex items-center gap-3"><span className={`font-bold w-4 text-center ${index === 0 ? 'text-[#FBBF39]' : 'text-gray-500'}`}>#{index + 1}</span><span className="text-white font-medium">{name}</span></div>
+                    <div className="text-[#0098DB] font-bold">{count}</div>
                   </div>
                 ))}
             </div>
           </div>
 
-          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#FFD700] shadow-lg relative overflow-hidden group">
-            <Heart className="absolute -right-4 -bottom-4 text-[#800000]/10 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
+          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#97233F] shadow-lg relative overflow-hidden group">
+            <Heart className="absolute -right-4 -bottom-4 text-[#97233F]/20 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
             <div className="relative z-10">
-              <h3 className="text-[#FFD700] uppercase text-xs font-bold tracking-widest mb-1">In Memory Of</h3>
+              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Loving Memory Of</h3>
               <p className="text-xl font-serif text-white">Deacon Scott Pickett</p>
             </div>
           </div>
@@ -293,12 +294,12 @@ function App() {
             <form onSubmit={saveSettings}>
               {/* SAVED CLASSES */}
               <div className="mb-6">
-                 <h3 className="text-xs text-[#FFD700] font-bold uppercase tracking-wider mb-2">My Classes</h3>
+                 <h3 className="text-xs text-[#FBBF39] font-bold uppercase tracking-wider mb-2">My Classes</h3>
                  <div className="grid grid-cols-2 gap-2 mb-3">
                     {Object.entries(settings.savedClasses || {}).map(([id, cls]) => (
                         <button 
                            key={id} type="button" onClick={() => loadSavedClass(id)}
-                           className={`p-2 rounded text-sm font-bold text-left truncate flex justify-between items-center ${settings.subject === cls.name ? 'bg-[#FFD700] text-[#800000]' : 'bg-white/10 hover:bg-white/20'}`}
+                           className={`p-2 rounded text-sm font-bold text-left truncate flex justify-between items-center ${settings.subject === cls.name ? 'bg-[#FBBF39] text-[#780A1E]' : 'bg-white/10 hover:bg-white/20'}`}
                         >
                            <span>{cls.name}</span>
                            {settings.subject === cls.name && <Check size={14} />}
@@ -313,7 +314,8 @@ function App() {
                     </div>
                     {classroomCourses.length === 0 ? (
                         <button type="button" onClick={fetchClassroomCourses} disabled={!accessToken || loadingCourses}
-                          className="w-full bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 py-2 rounded-lg text-sm font-bold transition flex justify-center items-center gap-2">
+                          // Uses Salpointe Blue for action buttons
+                          className="w-full bg-[#0098DB]/20 text-[#0098DB] hover:bg-[#0098DB]/40 py-2 rounded-lg text-sm font-bold transition flex justify-center items-center gap-2">
                             {loadingCourses ? <Loader2 className="animate-spin" size={16} /> : "Find My Classes"}
                         </button>
                     ) : (
@@ -330,21 +332,21 @@ function App() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm text-[#FFD700] font-bold mb-1">Display Name</label>
+                <label className="block text-sm text-[#FBBF39] font-bold mb-1">Display Name</label>
                 <input type="text" value={settings.teacherName} onChange={(e) => setSettings({...settings, teacherName: e.target.value})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FFD700]" />
+                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FBBF39]" />
               </div>
               <div className="mb-4">
-                <label className="block text-sm text-[#FFD700] font-bold mb-1">Current Subject</label>
+                <label className="block text-sm text-[#FBBF39] font-bold mb-1">Current Subject</label>
                 <input type="text" value={settings.subject} onChange={(e) => setSettings({...settings, subject: e.target.value})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FFD700]" />
+                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FBBF39]" />
               </div>
               <div className="mb-6">
-                <label className="block text-sm text-[#FFD700] font-bold mb-1">Current Roster</label>
+                <label className="block text-sm text-[#FBBF39] font-bold mb-1">Current Roster</label>
                 <textarea rows="3" value={settings.roster} onChange={(e) => setSettings({...settings, roster: e.target.value})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FFD700]" />
+                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FBBF39]" />
               </div>
-              <button type="submit" className="w-full py-4 bg-[#FFD700] text-[#800000] font-bold text-xl rounded-xl hover:bg-white transition mb-4">Save</button>
+              <button type="submit" className="w-full py-4 bg-[#FBBF39] text-[#780A1E] font-bold text-xl rounded-xl hover:bg-white transition mb-4">Save</button>
             </form>
             <button onClick={() => signOut(auth) && setIsSettingsOpen(false)} className="w-full flex items-center justify-center gap-2 border border-red-500/30 text-red-400 py-3 rounded-xl hover:bg-red-900/20 transition">
               <LogOut size={18} /> Sign Out
