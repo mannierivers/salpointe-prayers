@@ -7,8 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // ADD 'SC-LOGO-RBG.png' HERE SO IT CACHES OFFLINE
-      includeAssets: ['SC-LOGO-RBG.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+      // ADD 'SC-LOGO-RGB.png' HERE SO IT CACHES OFFLINE
+      includeAssets: ['SC-LOGO-RGB.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'Salpointe Catholic Prayers',
         short_name: 'SC Prayers',

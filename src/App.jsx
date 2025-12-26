@@ -171,7 +171,7 @@ function App() {
           
           <div className="flex items-center gap-6">
             <img 
-                src="/SC-LOGO-RBG.png" 
+                src="/SC-LOGO-RGB.png" 
                 alt="Salpointe Logo" 
                 className="h-20 w-auto object-contain drop-shadow-lg hidden md:block" 
             />
