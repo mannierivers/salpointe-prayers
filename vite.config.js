@@ -7,11 +7,17 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Salpointe Prayers',
-        short_name: 'Prayers',
+        name: 'Salpointe Catholic Prayers',
+        short_name: 'SC Prayers',
         description: 'Daily prayer companion for Salpointe classrooms',
-        theme_color: '#1e293b',
+        theme_color: '#97233F', // Salpointe Maroon
+        background_color: '#1a1a1a',
+        display: 'standalone',
+        orientation: 'landscape',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -22,18 +28,22 @@ export default defineConfig({
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png'
+          },
+          {
+            src: 'pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
     })
   ],
-  // --- THIS IS THE FIX ---
   build: {
-    chunkSizeWarningLimit: 1600, // Increases limit to 1.6MB to silence the warning
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // This separates the huge Firebase code from your app code
           if (id.includes('node_modules')) {
             return 'vendor';
           }
