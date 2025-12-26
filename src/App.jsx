@@ -16,14 +16,13 @@ function App() {
   const [classroomCourses, setClassroomCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
 
-  // Settings now includes 'savedClasses' to store multiple rosters
   const [settings, setSettings] = useState({ 
     teacherName: 'Teacher', 
     subject: 'Homeroom', 
     xp: 0,
     leaderboard: {},
     roster: '',
-    savedClasses: {} // New: stores { "courseId": { name: "Period 1", students: "Bob, Alice" } }
+    savedClasses: {} 
   });
   
   const [globalCount, setGlobalCount] = useState(0);
@@ -53,7 +52,6 @@ function App() {
         const docRef = doc(db, "teachers", currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          // Merge savedClasses if it exists, otherwise default to empty object
           setSettings({ leaderboard: {}, roster: '', savedClasses: {}, ...docSnap.data() }); 
         } else {
           setSettings({ teacherName: currentUser.displayName, subject: 'Homeroom', xp: 0, leaderboard: {}, roster: '', savedClasses: {} });
@@ -103,21 +101,8 @@ function App() {
         
         if (data.students) {
             const studentNames = data.students.map(s => s.profile.name.fullName).join(', ');
-            
-            // SAVE THE CLASS PERMANENTLY
-            const updatedClasses = {
-              ...settings.savedClasses,
-              [courseId]: { name: courseName, students: studentNames }
-            };
-
-            // Update settings: Add to saved list AND make it the active roster
-            setSettings({ 
-              ...settings, 
-              savedClasses: updatedClasses,
-              roster: studentNames,
-              subject: courseName // Auto-update the subject name on the board too!
-            });
-            
+            const updatedClasses = { ...settings.savedClasses, [courseId]: { name: courseName, students: studentNames } };
+            setSettings({ ...settings, savedClasses: updatedClasses, roster: studentNames, subject: courseName });
             setClassroomCourses([]); 
         } else {
             alert("No students found in this class.");
@@ -126,15 +111,10 @@ function App() {
     setLoadingCourses(false);
   };
 
-  // Helper to switch classes from the saved list
   const loadSavedClass = (courseId) => {
     const savedClass = settings.savedClasses[courseId];
     if (savedClass) {
-      setSettings({
-        ...settings,
-        roster: savedClass.students,
-        subject: savedClass.name
-      });
+      setSettings({ ...settings, roster: savedClass.students, subject: savedClass.name });
     }
   };
 
@@ -185,24 +165,36 @@ function App() {
     <div className="h-screen w-screen bg-[#1a1a1a] text-white overflow-hidden font-sans selection:bg-[#800000] selection:text-white">
       <div className="grid grid-cols-12 grid-rows-6 h-full p-4 gap-4 md:p-6 md:gap-6">
 
-        {/* 1. TOP HEADER */}
-        <div className="col-span-12 row-span-1 flex justify-between items-center bg-[#2d2d2d] rounded-2xl p-6 shadow-xl border-l-8 border-[#FFD700]">
-          <div>
-            <h1 className="text-5xl font-bold text-[#FFD700] tracking-wider drop-shadow-md">{format(currentDate, 'h:mm a')}</h1>
-            <div className="flex items-center gap-3 mt-1">
-                <p className="text-gray-400 text-xl font-medium">{format(currentDate, 'EEEE, MMMM do')}</p>
-                <span className="text-gray-600">•</span>
-                <p className="text-[#FFD700]/80 italic font-serif">Feast of {todaySaint}</p>
+        {/* 1. TOP HEADER - NOW WITH LOGO */}
+        <div className="col-span-12 row-span-1 flex justify-between items-center bg-[#2d2d2d] rounded-2xl p-4 md:p-6 shadow-xl border-l-8 border-[#FFD700]">
+          
+          <div className="flex items-center gap-6">
+            {/* SCHOOL LOGO ADDED HERE */}
+            <img 
+                src="/SC-LOGO-RGB.png" 
+                alt="Salpointe Logo" 
+                className="h-20 w-auto object-contain drop-shadow-lg hidden md:block" 
+            />
+            
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold text-[#FFD700] tracking-wider drop-shadow-md">{format(currentDate, 'h:mm a')}</h1>
+              <div className="flex items-center gap-3 mt-1">
+                  <p className="text-gray-400 text-lg md:text-xl font-medium">{format(currentDate, 'EEEE, MMMM do')}</p>
+                  <span className="hidden md:inline text-gray-600">•</span>
+                  <p className="hidden md:block text-[#FFD700]/80 italic font-serif">Feast of {todaySaint}</p>
+              </div>
             </div>
           </div>
+          
           <div className="flex items-center gap-6">
-            <div className="hidden md:flex flex-col items-end mr-4">
+            <div className="hidden lg:flex flex-col items-end mr-4">
                <div className="flex items-center gap-2 text-yellow-500"><Sun size={32} /><span className="text-3xl font-bold text-white">72°F</span></div>
                <span className="text-sm text-gray-500">Tucson, AZ</span>
             </div>
+
             {user ? (
-              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 bg-[#800000] hover:bg-[#600000] px-6 py-3 rounded-xl transition shadow-lg border border-[#FFD700]/30">
-                {user.photoURL && <img src={user.photoURL} className="w-10 h-10 rounded-full border-2 border-[#FFD700]" alt="Profile" />}
+              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 bg-[#800000] hover:bg-[#600000] px-4 py-2 md:px-6 md:py-3 rounded-xl transition shadow-lg border border-[#FFD700]/30">
+                {user.photoURL && <img src={user.photoURL} className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#FFD700]" alt="Profile" />}
                 <div className="text-left hidden lg:block">
                   <div className="font-bold text-[#FFD700] leading-tight">{settings.teacherName}</div>
                   <div className="text-xs text-white/80">Class XP: {settings.xp}</div>
@@ -210,7 +202,7 @@ function App() {
                 <SettingsIcon size={20} className="text-[#FFD700] ml-2" />
               </button>
             ) : (
-              <button onClick={handleLogin} className="bg-[#800000] hover:bg-[#600000] text-[#FFD700] px-8 py-4 rounded-xl font-bold text-xl border-2 border-[#FFD700]">Teacher Login</button>
+              <button onClick={handleLogin} className="bg-[#800000] hover:bg-[#600000] text-[#FFD700] px-6 py-3 rounded-xl font-bold text-lg md:text-xl border-2 border-[#FFD700]">Login</button>
             )}
           </div>
         </div>
@@ -220,10 +212,12 @@ function App() {
           <div className="absolute top-8 left-8 bg-[#FFD700] text-[#800000] text-sm md:text-base font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">
             {displayDay} {timeOfDay}
           </div>
+
           <div className="flex-1 flex flex-col justify-center items-center w-full text-center mt-8">
-            <h2 className="text-4xl md:text-5xl font-serif mb-6 text-[#FFD700] drop-shadow-lg">{currentPrayer.title}</h2>
-            <p className="text-xl md:text-3xl leading-relaxed text-white font-medium drop-shadow-md max-w-4xl">"{currentPrayer.text}"</p>
+            <h2 className="text-3xl md:text-5xl font-serif mb-6 text-[#FFD700] drop-shadow-lg">{currentPrayer.title}</h2>
+            <p className="text-lg md:text-3xl leading-relaxed text-white font-medium drop-shadow-md max-w-4xl">"{currentPrayer.text}"</p>
           </div>
+
           <div className="mt-4 flex flex-col md:flex-row gap-6 items-end justify-between w-full">
             <div className="flex-1 w-full md:w-auto">
                <div className="flex flex-wrap gap-2 mb-2">
@@ -239,11 +233,14 @@ function App() {
                   <button type="submit" className="absolute right-2 top-2 text-[#FFD700]"><Plus size={16}/></button>
                </form>
             </div>
+
             <div className="flex-1 flex flex-col gap-3 w-full md:w-auto max-w-md">
                 <div className="relative flex gap-2">
                   <input type="text" placeholder="Leader" value={leaderName} onChange={(e) => setLeaderName(e.target.value)}
                     className="flex-1 bg-white/10 border border-white/20 focus:border-[#FFD700] rounded-full py-2 px-4 text-white placeholder-white/50 text-center font-bold outline-none" />
-                  <button onClick={pickRandomStudent} className="bg-[#FFD700] p-2 rounded-full text-[#800000] hover:bg-white hover:scale-110 transition" title="Pick Random Student"><Wand2 size={20} /></button>
+                  <button onClick={pickRandomStudent} className="bg-[#FFD700] p-2 rounded-full text-[#800000] hover:bg-white hover:scale-110 transition" title="Pick Random Student">
+                      <Wand2 size={20} />
+                  </button>
                 </div>
                 <button onClick={handleAmen} className="w-full bg-[#FFD700] hover:bg-white text-[#800000] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">AMEN</button>
             </div>
@@ -258,6 +255,7 @@ function App() {
              <div className="text-5xl font-bold text-green-400 z-10">{globalCount.toLocaleString()}</div>
              <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe this year</div>
           </div>
+
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[2] border-t-4 border-blue-500 shadow-lg flex flex-col">
             <div className="flex items-center gap-3 mb-4">
               <Trophy className="text-[#FFD700]" size={24} />
@@ -272,6 +270,7 @@ function App() {
                 ))}
             </div>
           </div>
+
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#FFD700] shadow-lg relative overflow-hidden group">
             <Heart className="absolute -right-4 -bottom-4 text-[#800000]/10 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
             <div className="relative z-10">
