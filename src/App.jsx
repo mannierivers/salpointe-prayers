@@ -287,7 +287,7 @@ function App() {
                       <Wand2 size={20} />
                   </button>
                 </div>
-                <button onClick={handleAmen} className="w-full bg-[#FBBF39] hover:bg-white text-[#780A1E] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">AMEN</button>
+                <button onClick={handleAmen} className="w-full bg-[#FBBF39] hover:bg-white text-[#780A1E] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">PRAY FOR US</button>
             </div>
           </div>
         </div>
