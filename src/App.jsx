@@ -72,11 +72,25 @@ function App() {
     return () => clearInterval(weatherTimer);
   }, []);
 
-  // --- FIREBASE LISTENERS ---
+  // --- FIREBASE LISTENERS & SECURITY CHECK ---
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
+        // SECURITY: Faculty Only Check
+        // Rule: Faculty emails have no numbers (erivers@). Students have graduation year (29jsmith@).
+        const emailHandle = currentUser.email.split('@')[0];
+        const hasNumbers = /\d/.test(emailHandle);
+
+        if (hasNumbers) {
+           await signOut(auth);
+           alert("Access Denied: This application is restricted to Faculty members only.");
+           setUser(null);
+           return;
+        }
+
+        setUser(currentUser);
+        
+        // Load Data if Security Pass
         const docRef = doc(db, "teachers", currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
@@ -85,6 +99,8 @@ function App() {
           setSettings({ teacherName: currentUser.displayName, subject: 'Homeroom', xp: 0, leaderboard: {}, roster: '', savedClasses: {} });
           setIsSettingsOpen(true);
         }
+      } else {
+        setUser(null);
       }
     });
 
@@ -100,6 +116,10 @@ function App() {
       googleProvider.addScope('https://www.googleapis.com/auth/classroom.courses.readonly');
       googleProvider.addScope('https://www.googleapis.com/auth/classroom.rosters.readonly');
       const result = await signInWithPopup(auth, googleProvider);
+      
+      // Note: The onAuthStateChanged listener will catch the login 
+      // and perform the security check immediately.
+      
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) setAccessToken(credential.accessToken);
     } catch (e) { console.error(e); }
@@ -298,7 +318,7 @@ function App() {
              <img 
                src="/SCHSlogo_CLR_Transparent.png" 
                alt="Carmelite Shield" 
-               className="absolute right-4 top-4 opacity-10 w-24 h-24 object-contain" 
+               className="absolute right-4 top-4 opacity-100 w-24 h-24 object-contain" 
              />
              
              <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">School-Wide Unity</h3>
