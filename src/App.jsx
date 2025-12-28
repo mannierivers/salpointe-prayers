@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import confetti from 'canvas-confetti';
 import { PRAYERS } from './data/prayers';
 import { getSaint } from './data/saints';
-import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Download, Loader2, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
@@ -12,6 +12,9 @@ function App() {
   // --- STATE ---
   const [currentDate, setCurrentDate] = useState(new Date());
   
+  // New: Loading state for the initial Splash Screen
+  const [loadingAuth, setLoadingAuth] = useState(true);
+
   // Weather object: current, high, low
   const [weather, setWeather] = useState(null); 
   
@@ -77,7 +80,6 @@ function App() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         // SECURITY: Faculty Only Check
-        // Rule: Faculty emails have no numbers (erivers@). Students have graduation year (29jsmith@).
         const emailHandle = currentUser.email.split('@')[0];
         const hasNumbers = /\d/.test(emailHandle);
 
@@ -85,6 +87,7 @@ function App() {
            await signOut(auth);
            alert("Access Denied: This application is restricted to Faculty members only.");
            setUser(null);
+           setLoadingAuth(false);
            return;
         }
 
@@ -102,6 +105,8 @@ function App() {
       } else {
         setUser(null);
       }
+      // Turn off loading screen once Auth check is done
+      setLoadingAuth(false);
     });
 
     const unsubscribeGlobal = onSnapshot(doc(db, "stats", "school"), (doc) => {
@@ -116,9 +121,6 @@ function App() {
       googleProvider.addScope('https://www.googleapis.com/auth/classroom.courses.readonly');
       googleProvider.addScope('https://www.googleapis.com/auth/classroom.rosters.readonly');
       const result = await signInWithPopup(auth, googleProvider);
-      
-      // Note: The onAuthStateChanged listener will catch the login 
-      // and perform the security check immediately.
       
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) setAccessToken(credential.accessToken);
@@ -209,6 +211,22 @@ function App() {
 
   const topLeaders = Object.entries(settings.leaderboard || {}).sort(([, a], [, b]) => b - a).slice(0, 4);
 
+  // --- SPLASH SCREEN RENDER ---
+  if (loadingAuth) {
+    return (
+      <div className="h-screen w-screen bg-[#97233F] flex flex-col justify-center items-center text-white">
+        <img 
+            src="/SC-LOGO-RGB.png" 
+            alt="Salpointe Loading" 
+            className="w-32 h-32 object-contain mb-8 animate-pulse drop-shadow-2xl" 
+        />
+        <Loader2 className="w-8 h-8 animate-spin text-[#FBBF39]" />
+        <p className="mt-4 text-[#FBBF39] font-serif tracking-widest text-sm uppercase">Loading Prayers...</p>
+      </div>
+    );
+  }
+
+  // --- MAIN APP RENDER ---
   return (
     <div className="h-screen w-screen bg-[#1a1a1a] text-white overflow-hidden font-sans selection:bg-[#97233F] selection:text-white">
       <div className="grid grid-cols-12 grid-rows-6 h-full p-4 gap-4 md:p-6 md:gap-6">
