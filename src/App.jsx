@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import confetti from 'canvas-confetti';
 import { PRAYERS } from './data/prayers';
 import { getSaint } from './data/saints';
-import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Download, Loader2, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
@@ -12,7 +12,7 @@ function App() {
   // --- STATE ---
   const [currentDate, setCurrentDate] = useState(new Date());
   
-  // UPDATED: Weather is now an object holding current, high, and low
+  // Weather object: current, high, low
   const [weather, setWeather] = useState(null); 
   
   const [user, setUser] = useState(null);
@@ -52,7 +52,6 @@ function App() {
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        // Updated URL: Asks for Current Temp AND Daily Max/Min
         const response = await fetch(
           "https://api.open-meteo.com/v1/forecast?latitude=32.254&longitude=-110.945&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto"
         );
@@ -215,8 +214,6 @@ function App() {
           </div>
           
           <div className="flex items-center gap-6">
-            
-            {/* UPDATED WEATHER DISPLAY */}
             <div className="hidden lg:flex flex-col items-end mr-4">
                {weather ? (
                  <>
@@ -294,11 +291,19 @@ function App() {
 
         {/* 3. SIDEBAR */}
         <div className="hidden md:flex col-span-4 row-span-5 flex-col gap-4">
+          
+          {/* SCHOOL UNITY CARD - With New Shield Logo */}
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] border-t-4 border-[#0098DB] shadow-lg flex flex-col justify-center relative overflow-hidden">
-             <Globe className="absolute right-4 top-4 text-white/5 w-24 h-24" />
+             {/* Replaced Globe with Shield Image */}
+             <img 
+               src="/SCHSlogo_CLR_Transparent.png" 
+               alt="Carmelite Shield" 
+               className="absolute right-4 top-4 opacity-10 w-24 h-24 object-contain" 
+             />
+             
              <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">School-Wide Unity</h3>
              <div className="text-5xl font-bold text-[#0098DB] z-10">{globalCount.toLocaleString()}</div>
-             <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe since Jan 7, 2026</div>
+             <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe this year</div>
           </div>
 
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[2] border-t-4 border-[#FBBF39] shadow-lg flex flex-col">
@@ -319,7 +324,7 @@ function App() {
           <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#97233F] shadow-lg relative overflow-hidden group">
             <Heart className="absolute -right-4 -bottom-4 text-[#97233F]/20 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
             <div className="relative z-10">
-              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Loving Memory Of</h3>
+              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Memory Of</h3>
               <p className="text-xl font-serif text-white">Deacon Scott Pickett</p>
             </div>
           </div>
