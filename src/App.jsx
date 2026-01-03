@@ -1,447 +1,209 @@
-import React, { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import confetti from 'canvas-confetti';
-import { PRAYERS } from './data/prayers';
-import { getSaint } from './data/saints';
-import { Sun, LogOut, Heart, Trophy, Settings as SettingsIcon, Wand2, Plus, X, Globe, Download, Loader2, Check, ArrowUp, ArrowDown } from 'lucide-react';
-import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { Flame, X, Info, Loader2, BookOpen, Clock, Heart } from 'lucide-react';
+import { signInAnonymously, onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { auth, db, appId } from './firebase';
 
-function App() {
-  // --- STATE ---
-  const [currentDate, setCurrentDate] = useState(new Date());
+const WEEKLY_PRAYERS = {
+  1: { morning: { title: "Morning Offering", text: "O Jesus, through the Immaculate Heart of Mary, I offer you my prayers, works, joys, and sufferings of this day in union with the holy sacrifice of the Mass throughout the world. I offer them for all the intentions of your sacred heart: the salvation of souls, reparation for sin, the reunion of all Christians. Amen." }, afternoon: { title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Give us this day our daily bread and forgive us our trespasses, as we forgive those who trespass against us. Amen." }},
+  2: { morning: { title: "St. Teresa of Avila Prayer", text: "Grant that in all things, great and small, today and all the days of my life, I may do whatever You require of me. Help me respond to the slightest prompting of Your Grace, so that I may be Your trustworthy instrument for Your honor. Amen." }, afternoon: { title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen." }},
+  3: { morning: { title: "Memorare", text: "Remember, O most gracious Virgin Mary, that never was it known that anyone who fled to thy protection, implored thy help, or sought thy intercession was left unaided. Inspired with this confidence, we turn to thee, O Virgin of virgins, our Mother. Amen." }, afternoon: { title: "Hail Mary", text: "Hail Mary, full of grace, the Lord is with thee. Blessed art thou among women and blessed is the fruit of thy womb, Jesus. Holy Mary, mother of God, pray for us sinners now and at the hour of our death. Amen." }},
+  4: { morning: { title: "Prayer to Our Guardian Angel", text: "Angel of God, my guardian dear, to whom God’s love commits me here, ever this day be at my side to light and guard, to rule and guide. Amen." }, afternoon: { title: "Fatima Prayer", text: "O my Jesus, forgive us our sins, save us from the fires of hell. Lead all souls to Heaven, especially those who are most in need of Your mercy. Amen." }},
+  5: { morning: { title: "Serenity Prayer", text: "O God, grant me the serenity to accept the things I cannot change, the courage to change the things I can, and the wisdom to know the difference. Amen." }, afternoon: { title: "Anima Christi", text: "Soul of Christ, make me holy. Body of Christ, save me. Blood of Christ, fill me with love. Water from Christ’s side, wash me. Passion of Christ, strengthen me. Good Jesus, hear me. Within your wounds, hide me. Amen." }}
+};
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@300;400&display=swap');
   
-  // New: Loading state for the initial Splash Screen
-  const [loadingAuth, setLoadingAuth] = useState(true);
-
-  // Weather object: current, high, low
-  const [weather, setWeather] = useState(null); 
-  
-  const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-  const [classroomCourses, setClassroomCourses] = useState([]);
-  const [loadingCourses, setLoadingCourses] = useState(false);
-
-  const [settings, setSettings] = useState({ 
-    teacherName: 'Teacher', 
-    subject: 'Homeroom', 
-    xp: 0,
-    leaderboard: {},
-    roster: '',
-    savedClasses: {} 
-  });
-  
-  const [globalCount, setGlobalCount] = useState(0);
-  const [intentions, setIntentions] = useState([]);
-  const [newIntention, setNewIntention] = useState('');
-  const [leaderName, setLeaderName] = useState('');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // --- LOGIC ---
-  const dayName = format(currentDate, 'EEEE');
-  const displayDay = (dayName === 'Saturday' || dayName === 'Sunday') ? 'Monday' : dayName;
-  const hour = currentDate.getHours();
-  const timeOfDay = hour < 12 ? 'Morning' : 'Afternoon';
-  const currentPrayer = PRAYERS[displayDay]?.[timeOfDay] || PRAYERS['Monday']['Morning'];
-  const todaySaint = getSaint(currentDate);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentDate(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // --- WEATHER LISTENER (Tucson) ---
-  useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        const response = await fetch(
-          "https://api.open-meteo.com/v1/forecast?latitude=32.254&longitude=-110.945&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto"
-        );
-        const data = await response.json();
-        
-        setWeather({
-          current: Math.round(data.current.temperature_2m),
-          high: Math.round(data.daily.temperature_2m_max[0]),
-          low: Math.round(data.daily.temperature_2m_min[0])
-        });
-      } catch (error) {
-        console.error("Error fetching weather:", error);
-      }
-    };
-
-    fetchWeather();
-    const weatherTimer = setInterval(fetchWeather, 900000); // 15 mins
-    return () => clearInterval(weatherTimer);
-  }, []);
-
-  // --- FIREBASE LISTENERS & SECURITY CHECK ---
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        // SECURITY: Faculty Only Check
-        const emailHandle = currentUser.email.split('@')[0];
-        const hasNumbers = /\d/.test(emailHandle);
-
-        if (hasNumbers) {
-           await signOut(auth);
-           alert("Access Denied: This application is restricted to Faculty members only.");
-           setUser(null);
-           setLoadingAuth(false);
-           return;
-        }
-
-        setUser(currentUser);
-        
-        // Load Data if Security Pass
-        const docRef = doc(db, "teachers", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setSettings({ leaderboard: {}, roster: '', savedClasses: {}, ...docSnap.data() }); 
-        } else {
-          setSettings({ teacherName: currentUser.displayName, subject: 'Homeroom', xp: 0, leaderboard: {}, roster: '', savedClasses: {} });
-          setIsSettingsOpen(true);
-        }
-      } else {
-        setUser(null);
-      }
-      // Turn off loading screen once Auth check is done
-      setLoadingAuth(false);
-    });
-
-    const unsubscribeGlobal = onSnapshot(doc(db, "stats", "school"), (doc) => {
-      if (doc.exists()) { setGlobalCount(doc.data().totalPrayers || 0); }
-    });
-    return () => { unsubscribeAuth(); unsubscribeGlobal(); };
-  }, []);
-
-  // --- HANDLERS ---
-  const handleLogin = async () => {
-    try {
-      googleProvider.addScope('https://www.googleapis.com/auth/classroom.courses.readonly');
-      googleProvider.addScope('https://www.googleapis.com/auth/classroom.rosters.readonly');
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) setAccessToken(credential.accessToken);
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchClassroomCourses = async () => {
-    if (!accessToken) { alert("Please Sign Out and Sign In again to authorize Classroom access."); return; }
-    setLoadingCourses(true);
-    try {
-        const response = await fetch('https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE', {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const data = await response.json();
-        if (data.courses) setClassroomCourses(data.courses);
-        else alert("No active courses found.");
-    } catch (error) { console.error(error); alert("Failed to connect to Google Classroom."); }
-    setLoadingCourses(false);
-  };
-
-  const importStudentsFromCourse = async (courseId, courseName) => {
-    setLoadingCourses(true);
-    try {
-        const response = await fetch(`https://classroom.googleapis.com/v1/courses/${courseId}/students`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const data = await response.json();
-        
-        if (data.students) {
-            const studentNames = data.students.map(s => s.profile.name.fullName).join(', ');
-            const updatedClasses = { ...settings.savedClasses, [courseId]: { name: courseName, students: studentNames } };
-            setSettings({ ...settings, savedClasses: updatedClasses, roster: studentNames, subject: courseName });
-            setClassroomCourses([]); 
-        } else {
-            alert("No students found in this class.");
-        }
-    } catch (error) { console.error(error); }
-    setLoadingCourses(false);
-  };
-
-  const loadSavedClass = (courseId) => {
-    const savedClass = settings.savedClasses[courseId];
-    if (savedClass) {
-      setSettings({ ...settings, roster: savedClass.students, subject: savedClass.name });
-    }
-  };
-
-  const handleAmen = async () => {
-    confetti({ particleCount: 200, spread: 120, origin: { y: 0.7 }, colors: ['#97233F', '#FBBF39', '#0098DB', '#FFFFFF'] });
-    const globalRef = doc(db, "stats", "school");
-    try { await updateDoc(globalRef, { totalPrayers: increment(1) }); } catch (e) { await setDoc(globalRef, { totalPrayers: 1 }); }
-
-    if (user) {
-      const newXP = (settings.xp || 0) + 10;
-      let newLeaderboard = { ...settings.leaderboard };
-      if (leaderName.trim()) {
-        const cleanName = leaderName.trim();
-        newLeaderboard[cleanName] = (newLeaderboard[cleanName] || 0) + 1;
-      }
-      const newSettings = { ...settings, xp: newXP, leaderboard: newLeaderboard };
-      setSettings(newSettings);
-      await setDoc(doc(db, "teachers", user.uid), newSettings, { merge: true });
-      setLeaderName('');
-    }
-  };
-
-  const addIntention = (e) => {
-    e.preventDefault();
-    if (newIntention.trim()) { setIntentions([...intentions, newIntention.trim()]); setNewIntention(''); }
-  };
-  const removeIntention = (index) => setIntentions(intentions.filter((_, i) => i !== index));
-
-  const pickRandomStudent = () => {
-    if (!settings.roster) return alert("Please add student names in Settings first!");
-    const names = settings.roster.split(',').map(n => n.trim()).filter(n => n.length > 0);
-    if (names.length === 0) return;
-    const random = names[Math.floor(Math.random() * names.length)];
-    setLeaderName(random);
-  };
-
-  const saveSettings = async (e) => {
-    e.preventDefault();
-    if (user) {
-      await setDoc(doc(db, "teachers", user.uid), settings, { merge: true });
-      setIsSettingsOpen(false);
-    }
-  };
-
-  const topLeaders = Object.entries(settings.leaderboard || {}).sort(([, a], [, b]) => b - a).slice(0, 4);
-
-  // --- SPLASH SCREEN RENDER ---
-  if (loadingAuth) {
-    return (
-      <div className="h-screen w-screen bg-[#97233F] flex flex-col justify-center items-center text-white">
-        <img 
-            src="/SC-LOGO-RGB.png" 
-            alt="Salpointe Loading" 
-            className="w-32 h-32 object-contain mb-8 animate-pulse drop-shadow-2xl" 
-        />
-        <Loader2 className="w-8 h-8 animate-spin text-[#FBBF39]" />
-        <p className="mt-4 text-[#FBBF39] font-serif tracking-widest text-sm uppercase">Loading Prayers...</p>
-      </div>
-    );
+  html, body, #root { 
+    height: 100vh; 
+    width: 100vw; 
+    overflow: hidden; 
+    margin: 0; 
+    padding: 0;
   }
 
-  // --- MAIN APP RENDER ---
-  return (
-    <div className="h-screen w-screen bg-[#1a1a1a] text-white overflow-hidden font-sans selection:bg-[#97233F] selection:text-white">
-      <div className="grid grid-cols-12 grid-rows-6 h-full p-4 gap-4 md:p-6 md:gap-6">
+  .font-serif { font-family: 'Cormorant Garamond', serif; }
+  .font-sans { font-family: 'Inter', sans-serif; }
+  
+  /* Hidden Scrollbar but still scrollable for ChromeBox */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        {/* 1. TOP HEADER */}
-        <div className="col-span-12 row-span-1 flex justify-between items-center bg-[#2d2d2d] rounded-2xl p-4 md:p-6 shadow-xl border-l-8 border-[#FBBF39]">
-          
-          <div className="flex items-center gap-6">
-            <img 
-                src="/SC-LOGO-RGB.png" 
-                alt="Salpointe Logo" 
-                className="h-20 w-auto object-contain drop-shadow-lg hidden md:block" 
-            />
-            
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-[#FBBF39] tracking-wider drop-shadow-md">{format(currentDate, 'h:mm a')}</h1>
-              <div className="flex items-center gap-3 mt-1">
-                  <p className="text-gray-400 text-lg md:text-xl font-medium">{format(currentDate, 'EEEE, MMMM do')}</p>
-                  <span className="hidden md:inline text-gray-600">•</span>
-                  <p className="hidden md:block text-[#FBBF39]/80 italic font-serif">Feast of {todaySaint}</p>
-              </div>
+  .candle-glow { filter: drop-shadow(0 0 12px rgba(197, 179, 88, 0.6)); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+`;
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [prayers, setPrayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newPrayer, setNewPrayer] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState({ message: '', visible: false });
+  const [dailyPrayer, setDailyPrayer] = useState(null);
+
+  useEffect(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const isMorning = now.getHours() < 12;
+    if (day >= 1 && day <= 5) {
+      const todayData = WEEKLY_PRAYERS[day];
+      setDailyPrayer({ ...(isMorning ? todayData.morning : todayData.afternoon), period: isMorning ? "Morning Prayer" : "Afternoon Prayer" });
+    } else {
+      setDailyPrayer({ title: "Lancer Blessing", text: "May the Lord bless the Salpointe community this weekend. Our Lady of Mount Carmel, pray for us.", period: "Weekend Reflection" });
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!db || !appId) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), orderBy('timestamp', 'desc'), limit(15));
+    const unsubscribe = onSnapshot(q, (s) => {
+      setPrayers(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsubscribe();
+  }, [appId]);
+
+  const showToast = (msg) => {
+    setToast({ message: String(msg), visible: true });
+    setTimeout(() => setToast({ message: '', visible: false }), 3000);
+  };
+
+  const handleAuth = async () => {
+    if (user) await signOut(auth);
+    else try { await signInAnonymously(auth); } catch { showToast("Error connecting."); }
+  };
+
+  const handleSubmit = async () => {
+    if (!newPrayer.trim() || isSubmitting || !user) return;
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), { text: newPrayer.trim(), uid: user.uid, timestamp: serverTimestamp() });
+      setNewPrayer(''); setIsModalOpen(false); showToast("Intention shared.");
+    } catch { showToast("Error."); }
+    finally { setIsSubmitting(false); }
+  };
+
+  return (
+    <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden select-none">
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
+
+      {/* Background Glows */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-[#2a0a0a] to-transparent opacity-60"></div>
+        <div className="absolute -bottom-24 -right-24 w-1/2 h-1/2 bg-[#681818]/10 rounded-full blur-[120px]"></div>
+      </div>
+
+      {/* Nav */}
+      <nav className="relative z-20 w-full p-6 flex justify-between items-center border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <BookOpen className="w-5 h-5 text-[#e8dcb5] opacity-80" />
+          <span className="text-[#e8dcb5] text-xl font-serif italic tracking-wide">Salpointe Prayers</span>
+        </div>
+        <button onClick={handleAuth} className="text-[10px] tracking-[0.2em] uppercase text-slate-500 hover:text-[#e8dcb5] transition-colors">
+          {user ? "Leave Chapel" : "Enter Chapel"}
+        </button>
+      </nav>
+
+      {/* Main Board Layout */}
+      <main className="relative z-10 flex-grow flex overflow-hidden p-8 gap-8">
+        
+        {/* Left Column: Liturgy & Deacon Scott Tribute */}
+        <div className="w-1/2 flex flex-col justify-between animate-fade-in">
+          <div>
+            <div className="mb-8">
+              <h1 className="text-4xl text-slate-100 font-serif font-light mb-2">Intentions</h1>
+              <p className="text-slate-500 font-serif italic text-lg">Our Lady of Mount Carmel, pray for us.</p>
             </div>
+
+            {dailyPrayer && (
+              <div className="p-10 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm shadow-2xl">
+                <div className="flex items-center gap-2 text-[#C5B358] mb-6 opacity-90">
+                  <Clock className="w-5 h-5" />
+                  <span className="text-xs uppercase tracking-[0.3em] font-bold">{dailyPrayer.period}</span>
+                </div>
+                <h2 className="text-3xl text-[#e8dcb5] font-serif mb-6 italic">{dailyPrayer.title}</h2>
+                <p className="text-slate-200 font-serif text-2xl leading-relaxed first-letter:text-5xl first-letter:text-[#C5B358] first-letter:mr-2">
+                  {dailyPrayer.text}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Deacon Scott Memorial (Fixed Bottom Left) */}
+          <div className="border-t border-white/10 pt-6 opacity-60">
+            <p className="text-sm text-[#e8dcb5] font-serif italic mb-1">"God is good and I can feel His presence."</p>
+            <p className="text-[10px] text-slate-500 tracking-[0.2em] uppercase">In Loving Memory of Deacon Scott Pickett</p>
+          </div>
+        </div>
+
+        {/* Right Column: Intention List (Scrollable) */}
+        <div className="w-1/2 flex flex-col overflow-hidden bg-black/20 rounded-2xl border border-white/5">
+          <div className="p-6 border-b border-white/5 flex justify-between items-center">
+            <h3 className="text-xs uppercase tracking-[0.3em] text-slate-500 font-bold">Community Intentions</h3>
+            <span className="w-2 h-2 rounded-full bg-[#C5B358] animate-pulse"></span>
           </div>
           
-          <div className="flex items-center gap-6">
-            <div className="hidden lg:flex flex-col items-end mr-4">
-               {weather ? (
-                 <>
-                   <div className="flex items-center gap-2 text-[#FBBF39]">
-                      <Sun size={32} />
-                      <span className="text-4xl font-bold text-white tracking-tight">{weather.current}°</span>
-                   </div>
-                   <div className="flex gap-3 text-xs font-bold mt-1">
-                      <span className="text-[#FBBF39] flex items-center gap-1"><ArrowUp size={12}/> H: {weather.high}°</span>
-                      <span className="text-[#0098DB] flex items-center gap-1"><ArrowDown size={12}/> L: {weather.low}°</span>
-                   </div>
-                 </>
-               ) : (
-                 <div className="flex items-center gap-2 text-[#FBBF39]">
-                    <Sun size={32} />
-                    <Loader2 className="animate-spin text-white" />
-                 </div>
-               )}
-            </div>
-
-            {user ? (
-              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 bg-[#97233F] hover:bg-[#780A1E] px-4 py-2 md:px-6 md:py-3 rounded-xl transition shadow-lg border border-[#FBBF39]/30">
-                {user.photoURL && <img src={user.photoURL} className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#FBBF39]" alt="Profile" />}
-                <div className="text-left hidden lg:block">
-                  <div className="font-bold text-[#FBBF39] leading-tight">{settings.teacherName}</div>
-                  <div className="text-xs text-white/80">Class XP: {settings.xp}</div>
-                </div>
-                <SettingsIcon size={20} className="text-[#FBBF39] ml-2" />
-              </button>
+          <div className="flex-grow overflow-y-auto p-8 no-scrollbar space-y-10">
+            {loading ? (
+              <div className="h-full flex items-center justify-center opacity-30"><Loader2 className="w-8 h-8 animate-spin" /></div>
+            ) : prayers.length === 0 ? (
+              <p className="text-center text-slate-600 font-serif italic text-xl">The chapel is quiet. Be the first to share.</p>
             ) : (
-              <button onClick={handleLogin} className="bg-[#97233F] hover:bg-[#780A1E] text-[#FBBF39] px-6 py-3 rounded-xl font-bold text-lg md:text-xl border-2 border-[#FBBF39]">Login</button>
+              prayers.map((p, i) => (
+                <div key={p.id} className="flex gap-6 animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <div className="flex-shrink-0 mt-2">
+                    <div className="w-2 h-2 rounded-full bg-[#C5B358]/60 shadow-[0_0_15px_rgba(197,179,88,0.5)]"></div>
+                  </div>
+                  <div className="flex flex-col">
+                    <p className="text-slate-300 font-serif text-2xl leading-snug italic">"{p.text}"</p>
+                    <span className="text-[11px] text-slate-600 mt-3 tracking-widest uppercase">
+                      {p.timestamp ? p.timestamp.toDate().toLocaleDateString(undefined, {month:'short', day:'numeric'}) : "Just now"}
+                    </span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
+      </main>
 
-        {/* 2. MAIN PRAYER CARD */}
-        <div className="col-span-12 md:col-span-8 row-span-4 md:row-span-5 bg-gradient-to-br from-[#97233F] to-[#780A1E] rounded-3xl p-6 md:p-10 flex flex-col shadow-2xl relative border-4 border-[#2d2d2d]">
-          <div className="absolute top-8 left-8 bg-[#FBBF39] text-[#780A1E] text-sm md:text-base font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">
-            {displayDay} {timeOfDay}
-          </div>
-
-          <div className="flex-1 flex flex-col justify-center items-center w-full text-center mt-8">
-            <h2 className="text-3xl md:text-5xl font-serif mb-6 text-[#FBBF39] drop-shadow-lg">{currentPrayer.title}</h2>
-            <p className="text-lg md:text-3xl leading-relaxed text-white font-medium drop-shadow-md max-w-4xl">"{currentPrayer.text}"</p>
-          </div>
-
-          <div className="mt-4 flex flex-col md:flex-row gap-6 items-end justify-between w-full">
-            <div className="flex-1 w-full md:w-auto">
-               <div className="flex flex-wrap gap-2 mb-2">
-                 {intentions.map((intent, i) => (
-                    <span key={i} className="bg-white/10 text-xs px-3 py-1 rounded-full flex items-center gap-2 animate-in fade-in zoom-in">
-                        {intent} <button onClick={() => removeIntention(i)}><X size={12}/></button>
-                    </span>
-                 ))}
-               </div>
-               <form onSubmit={addIntention} className="relative">
-                  <input type="text" placeholder="Add prayer intention..." value={newIntention} onChange={(e) => setNewIntention(e.target.value)}
-                    className="w-full bg-black/20 text-sm border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/30 outline-none focus:border-[#FBBF39]" />
-                  <button type="submit" className="absolute right-2 top-2 text-[#FBBF39]"><Plus size={16}/></button>
-               </form>
-            </div>
-
-            <div className="flex-1 flex flex-col gap-3 w-full md:w-auto max-w-md">
-                <div className="relative flex gap-2">
-                  <input type="text" placeholder="Leader" value={leaderName} onChange={(e) => setLeaderName(e.target.value)}
-                    className="flex-1 bg-white/10 border border-white/20 focus:border-[#FBBF39] rounded-full py-2 px-4 text-white placeholder-white/50 text-center font-bold outline-none" />
-                  <button onClick={pickRandomStudent} className="bg-[#FBBF39] p-2 rounded-full text-[#780A1E] hover:bg-white hover:scale-110 transition" title="Pick Random Student">
-                      <Wand2 size={20} />
-                  </button>
-                </div>
-                <button onClick={handleAmen} className="w-full bg-[#FBBF39] hover:bg-white text-[#780A1E] text-2xl font-black py-3 rounded-full shadow-lg transform hover:scale-105 transition-all active:scale-95">PRAY FOR US</button>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. SIDEBAR */}
-        <div className="hidden md:flex col-span-4 row-span-5 flex-col gap-4">
-          
-          {/* SCHOOL UNITY CARD - With New Shield Logo */}
-          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] border-t-4 border-[#0098DB] shadow-lg flex flex-col justify-center relative overflow-hidden">
-             {/* Replaced Globe with Shield Image */}
-             <img 
-               src="/SCHSlogo_CLR_Transparent.png" 
-               alt="Carmelite Shield" 
-               className="absolute right-4 top-4 opacity-100 w-24 h-24 object-contain" 
-             />
-             
-             <h3 className="text-gray-400 uppercase text-xs font-bold tracking-widest mb-1 z-10">School-Wide Unity</h3>
-             <div className="text-5xl font-bold text-[#0098DB] z-10">{globalCount.toLocaleString()}</div>
-             <div className="text-sm text-gray-500 z-10">Prayers said at Salpointe this year</div>
-          </div>
-
-          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[2] border-t-4 border-[#FBBF39] shadow-lg flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-              <Trophy className="text-[#FBBF39]" size={24} />
-              <h3 className="text-gray-300 uppercase text-sm font-bold tracking-widest">Class Leaders</h3>
-            </div>
-            <div className="space-y-3 overflow-y-auto">
-                {topLeaders.map(([name, count], index) => (
-                  <div key={name} className="flex items-center justify-between bg-[#1a1a1a] p-2 px-3 rounded-lg border border-white/5">
-                    <div className="flex items-center gap-3"><span className={`font-bold w-4 text-center ${index === 0 ? 'text-[#FBBF39]' : 'text-gray-500'}`}>#{index + 1}</span><span className="text-white font-medium">{name}</span></div>
-                    <div className="text-[#0098DB] font-bold">{count}</div>
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          <div className="bg-[#2d2d2d] rounded-2xl p-6 flex-[1] flex flex-col justify-center text-center border-t-4 border-[#97233F] shadow-lg relative overflow-hidden group">
-            <Heart className="absolute -right-4 -bottom-4 text-[#97233F]/20 w-32 h-32 transform -rotate-12 group-hover:scale-110 transition duration-700" fill="currentColor" />
-            <div className="relative z-10">
-              <h3 className="text-[#FBBF39] uppercase text-xs font-bold tracking-widest mb-1">In Memory Of</h3>
-              <p className="text-xl font-serif text-white">Deacon Scott Pickett</p>
-            </div>
-          </div>
-        </div>
+      {/* Floating Action (Candle) */}
+      <div className="fixed bottom-10 right-10 z-50">
+        <button onClick={() => user ? setIsModalOpen(true) : showToast("Enter the chapel to light a candle.")} className="w-20 h-20 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-[0_0_50px_rgba(104,24,24,0.3)] hover:scale-110 transition-transform duration-500">
+          <Flame className="w-10 h-10 text-[#C5B358] candle-glow" />
+        </button>
       </div>
 
-      {/* SETTINGS MODAL */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#2d2d2d] p-8 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">Classroom Settings</h2>
-              <button onClick={() => setIsSettingsOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+      {/* Modal & Toast (unchanged logic, styled for large screen) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-slate-900 border border-white/10 p-12 rounded-3xl w-full max-w-2xl">
+            <h2 className="text-3xl text-[#e8dcb5] font-serif mb-8 text-center italic">Offer your intention</h2>
+            <textarea value={newPrayer} onChange={(e) => setNewPrayer(e.target.value)} rows="4" maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-xl p-6 text-slate-100 text-2xl font-serif focus:border-[#C5B358] outline-none transition-all resize-none" placeholder="..." />
+            <div className="flex justify-between items-center mt-8">
+              <span className="text-slate-500">{newPrayer.length}/200</span>
+              <div className="flex gap-4">
+                <button onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-slate-500 uppercase tracking-widest text-sm">Cancel</button>
+                <button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-lg font-serif">Amen</button>
+              </div>
             </div>
-            
-            <form onSubmit={saveSettings}>
-              {/* SAVED CLASSES */}
-              <div className="mb-6">
-                 <h3 className="text-xs text-[#FBBF39] font-bold uppercase tracking-wider mb-2">My Classes</h3>
-                 <div className="grid grid-cols-2 gap-2 mb-3">
-                    {Object.entries(settings.savedClasses || {}).map(([id, cls]) => (
-                        <button 
-                           key={id} type="button" onClick={() => loadSavedClass(id)}
-                           className={`p-2 rounded text-sm font-bold text-left truncate flex justify-between items-center ${settings.subject === cls.name ? 'bg-[#FBBF39] text-[#780A1E]' : 'bg-white/10 hover:bg-white/20'}`}
-                        >
-                           <span>{cls.name}</span>
-                           {settings.subject === cls.name && <Check size={14} />}
-                        </button>
-                    ))}
-                 </div>
-                 
-                 {/* GOOGLE IMPORT */}
-                 <div className="bg-[#1a1a1a] p-4 rounded-xl border border-gray-700">
-                    <div className="flex items-center gap-2 mb-3 text-gray-400 font-bold text-xs uppercase tracking-wider">
-                        <Download size={14} /> Import New Class
-                    </div>
-                    {classroomCourses.length === 0 ? (
-                        <button type="button" onClick={fetchClassroomCourses} disabled={!accessToken || loadingCourses}
-                          className="w-full bg-[#0098DB]/20 text-[#0098DB] hover:bg-[#0098DB]/40 py-2 rounded-lg text-sm font-bold transition flex justify-center items-center gap-2">
-                            {loadingCourses ? <Loader2 className="animate-spin" size={16} /> : "Find My Classes"}
-                        </button>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {classroomCourses.map(course => (
-                                <button key={course.id} type="button" onClick={() => importStudentsFromCourse(course.id, course.name)}
-                                  className="text-left bg-gray-700 hover:bg-gray-600 p-2 rounded text-sm text-white truncate">
-                                    {course.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                 </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm text-[#FBBF39] font-bold mb-1">Display Name</label>
-                <input type="text" value={settings.teacherName} onChange={(e) => setSettings({...settings, teacherName: e.target.value})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FBBF39]" />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm text-[#FBBF39] font-bold mb-1">Current Subject</label>
-                <input type="text" value={settings.subject} onChange={(e) => setSettings({...settings, subject: e.target.value})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FBBF39]" />
-              </div>
-              <div className="mb-6">
-                <label className="block text-sm text-[#FBBF39] font-bold mb-1">Current Roster</label>
-                <textarea rows="3" value={settings.roster} onChange={(e) => setSettings({...settings, roster: e.target.value})}
-                  className="w-full bg-[#1a1a1a] border border-gray-700 rounded p-3 text-white outline-none focus:border-[#FBBF39]" />
-              </div>
-              <button type="submit" className="w-full py-4 bg-[#FBBF39] text-[#780A1E] font-bold text-xl rounded-xl hover:bg-white transition mb-4">Save</button>
-            </form>
-            <button onClick={() => signOut(auth) && setIsSettingsOpen(false)} className="w-full flex items-center justify-center gap-2 border border-red-500/30 text-red-400 py-3 rounded-xl hover:bg-red-900/20 transition">
-              <LogOut size={18} /> Sign Out
-            </button>
           </div>
+        </div>
+      )}
+
+      {toast.visible && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[110] bg-[#2a0a0a] border border-[#C5B358]/30 px-8 py-4 rounded-full text-[#e8dcb5] flex items-center gap-4 shadow-2xl animate-fade-in">
+          <Info className="w-5 h-5 text-[#C5B358]" />
+          <span className="text-lg font-serif italic">{toast.message}</span>
         </div>
       )}
     </div>
   );
 }
-
-export default App;
