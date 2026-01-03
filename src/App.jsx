@@ -50,6 +50,8 @@ const styles = `
   .candle-glow { filter: drop-shadow(0 0 12px rgba(197, 179, 88, 0.6)); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+  
+  .logo-glow { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.15)); }
 `;
 
 export default function App() {
@@ -159,13 +161,21 @@ export default function App() {
       </div>
 
       <nav className="relative z-20 w-full p-6 flex justify-between items-center border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-[#e8dcb5] opacity-80" />
-            <span className="text-[#e8dcb5] text-xl font-serif italic tracking-wide">Salpointe Prayers</span>
+        <div className="flex items-center gap-6">
+          {/* LANCER 75 LOGO SECTION */}
+          <div className="flex items-center gap-4">
+            <img 
+              src="/lancer-75.png" 
+              alt="Lancer 75" 
+              className="h-10 w-auto logo-glow opacity-90"
+              onError={(e) => e.target.style.display = 'none'} // Fallback if image missing
+            />
+            <div className="h-6 w-px bg-white/10 hidden md:block"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-[#e8dcb5] text-xl font-serif italic tracking-wide">Salpointe Prayers</span>
+            </div>
           </div>
           
-          {/* TEACHER AGENDA LINK */}
           <a 
             href="https://teacher-agenda.vercel.app" 
             target="_blank" 
@@ -218,7 +228,7 @@ export default function App() {
           <div className="border-t border-white/10 pt-6 opacity-60 hover:opacity-100 transition-opacity duration-1000">
             <p className="text-sm text-[#e8dcb5] font-serif italic mb-1">"God is good and I can feel His presence."</p>
             <p className="text-[10px] text-slate-500 tracking-[0.2em] uppercase">In Loving Memory of Deacon Scott Pickett</p>
-            <p className="text-[8px] text-slate-600 mt-1 uppercase tracking-tighter">Visionary of the Lancer Family</p>
+            <p className="text-[8px] text-slate-600 mt-1 uppercase tracking-tighter font-semibold">Visionary of the Lancer Family</p>
           </div>
         </div>
 
@@ -285,7 +295,7 @@ export default function App() {
                   disabled={isSubmitting || !newPrayer.trim()} 
                   className="bg-[#681818] hover:bg-[#801e1e] text-[#e8dcb5] border border-[#681818]/50 px-12 py-3 rounded-full text-xl font-serif transition-all disabled:opacity-50"
                 >
-                  {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : "Amen"}
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Amen"}
                 </button>
               </div>
             </div>
