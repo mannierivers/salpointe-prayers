@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Flame, X, Info, Loader2, BookOpen, Clock, User, LogOut, LayoutDashboard, Trash2 } from 'lucide-react';
+import { Flame, X, Info, Loader2, BookOpen, Clock, User, LogOut, LayoutDashboard, Trash2, Heart } from 'lucide-react';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 
-// Ensure these are exported from your firebase.js
+// Verified exports from your firebase.js
 import { auth, db, appId, googleProvider } from './firebase';
 
 const ADMINS = ['erivers@salpointe.org', 'cptak@salpointe.org'];
@@ -11,7 +11,7 @@ const ADMINS = ['erivers@salpointe.org', 'cptak@salpointe.org'];
 const WEEKLY_PRAYERS = {
   1: { 
     morning: { title: "Morning Offering", text: "O Jesus, through the Immaculate Heart of Mary, I offer you my prayers, works, joys, and sufferings of this day in union with the holy sacrifice of the Mass throughout the world. Amen." }, 
-    afternoon: { title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Give us this day our daily bread. Amen." } 
+    afternoon: { title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Give us this day our daily bread and forgive us our trespasses. Amen." } 
   },
   2: { 
     morning: { title: "St. Teresa of Avila Prayer", text: "Grant that in all things, great and small, today and all the days of my life, I may do whatever You require of me. Help me respond to the slightest prompting of Your Grace. Amen." }, 
@@ -49,8 +49,12 @@ const styles = `
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
   .candle-glow { filter: drop-shadow(0 0 12px rgba(197, 179, 88, 0.6)); }
+  
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+
+  @keyframes softSlowFade { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: blur(0); } }
+  .animate-soft-motion { animation: softSlowFade 1.5s ease-in-out forwards; }
 `;
 
 export default function App() {
@@ -58,6 +62,7 @@ export default function App() {
   const [prayers, setPrayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isIntroOpen, setIsIntroOpen] = useState(true);
   const [newPrayer, setNewPrayer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({ message: '', visible: false });
@@ -139,19 +144,14 @@ export default function App() {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prayers', id));
       showToast("Intention removed.");
     } catch (e) {
-      showToast("Delete failed. Check permissions.");
+      showToast("Delete failed.");
     }
   };
 
   const handleSubmit = async () => {
     if (!newPrayer.trim() || isSubmitting || !user) return;
-    
-    // Debug: Log the user to see the exact email string in the console
-    console.log("Current User:", user);
-
     setIsSubmitting(true);
     try {
-      const prayersRef = collection(db, 'artifacts', appId, 'public', 'data', 'prayers');
       const payload = {
         text: newPrayer.trim(),
         uid: user.uid,
@@ -159,14 +159,13 @@ export default function App() {
         userEmail: user.email,
         timestamp: serverTimestamp()
       };
-      await addDoc(prayersRef, payload);
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), payload);
       setNewPrayer('');
       setIsModalOpen(false);
       showToast("Intention shared.");
     } catch (e) {
       console.error("Submit Error:", e);
-      // This will now show the specific Firebase error code in the toast
-      showToast(`Error: ${e.code || "Check login"}`);
+      showToast("Error sharing intention.");
     } finally {
       setIsSubmitting(false);
     }
@@ -178,7 +177,6 @@ export default function App() {
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden select-none">
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       
-      {/* Background Decor */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-[#2a0a0a] to-transparent opacity-60" />
         <div className="absolute -bottom-24 -right-24 w-1/2 h-1/2 bg-[#681818]/10 rounded-full blur-[120px]" />
@@ -207,7 +205,10 @@ export default function App() {
         </div>
         <div className="flex items-center gap-4">
           {user && <span className="text-[#e8dcb5]/60 text-xs font-serif italic">{user.displayName}</span>}
-          <button onClick={handleAuth} className="text-[10px] tracking-widest uppercase text-slate-500 hover:text-white transition-colors">
+          <button 
+            onClick={handleAuth} 
+            className="text-[10px] tracking-widest uppercase text-slate-500 hover:text-white transition-colors"
+          >
             {user ? "Sign Out" : "Lancer Sign In"}
           </button>
         </div>
@@ -257,11 +258,14 @@ export default function App() {
                         <div className="flex items-center gap-3">
                           <span className="text-sm text-[#C5B358]/80 font-serif italic">— {p.userName}</span>
                           <span className="text-[9px] text-slate-700 uppercase tracking-widest">
-                            {p.timestamp ? p.timestamp.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "Just now"}
+                            {p.timestamp ? p.timestamp.toDate()?.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "Just now"}
                           </span>
                         </div>
                         {isAdmin && (
-                          <button onClick={() => handleDelete(p.id)} className="text-red-900/40 hover:text-red-600 transition-colors">
+                          <button 
+                            onClick={() => handleDelete(p.id)} 
+                            className="text-red-900/40 hover:text-red-600 transition-colors"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
@@ -275,12 +279,49 @@ export default function App() {
         </div>
       </main>
 
+      {/* Intro Message from President Jen Harris */}
+      {isIntroOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-8 overflow-hidden">
+          <div className="max-w-2xl w-full bg-[#1e1e1e]/40 border border-[#C5B358]/20 p-10 rounded-3xl shadow-2xl animate-soft-motion text-center">
+            <div className="flex justify-center mb-6">
+              <Heart className="w-8 h-8 text-[#C5B358] opacity-60" />
+            </div>
+            <h2 className="text-sm uppercase tracking-[0.4em] text-slate-500 font-bold mb-6 italic">A Message from our President</h2>
+            <div className="space-y-6">
+              <p className="text-[#e8dcb5] font-serif text-2xl leading-relaxed italic">
+                "Please help strengthen our communication with God by focusing your mind, heart, and spirit in prayer for the intentions of the Salpointe community."
+              </p>
+              <p className="text-slate-400 font-serif text-lg leading-relaxed">
+                You might have your own prayer tradition or want to begin by reading the intentions, keeping those intentions in mind as you recite the daily prayer, and finishing with:
+              </p>
+              <p className="text-[#C5B358] font-serif text-2xl font-semibold italic">
+                "Our Lady of Mt. Carmel, pray for us."
+              </p>
+            </div>
+            <button 
+              onClick={() => setIsIntroOpen(false)}
+              className="mt-10 px-10 py-3 bg-[#681818]/20 border border-[#681818]/40 text-[#e8dcb5] rounded-full font-serif text-lg hover:bg-[#681818]/40 transition-all tracking-wide"
+            >
+              Enter the Chapel
+            </button>
+            <div className="mt-8 text-[10px] uppercase tracking-widest text-slate-600">
+              Jen Harris • President
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Candle Button */}
       <div className="fixed bottom-10 right-10 z-50">
-        <button onClick={() => { user ? setIsModalOpen(true) : handleAuth(); }} className="w-20 h-20 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
+        <button 
+          onClick={() => { user ? setIsModalOpen(true) : handleAuth(); }} 
+          className="w-20 h-20 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform"
+        >
           <Flame className="w-10 h-10 text-[#C5B358] candle-glow" />
         </button>
       </div>
 
+      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-slate-900 border border-white/10 p-12 rounded-3xl w-full max-w-2xl shadow-2xl animate-fade-in">
@@ -296,8 +337,17 @@ export default function App() {
             <div className="flex justify-between items-center mt-8">
               <span className="text-slate-500 text-sm tracking-widest">{newPrayer.length}/200</span>
               <div className="flex gap-4">
-                <button onClick={() => { setIsModalOpen(false); }} className="px-8 py-3 text-slate-500 uppercase tracking-widest text-xs hover:text-white transition-colors">Cancel</button>
-                <button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-xl font-serif disabled:opacity-50 transition-all">
+                <button 
+                  onClick={() => { setIsModalOpen(false); }} 
+                  className="px-8 py-3 text-slate-500 uppercase tracking-widest text-xs hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSubmit} 
+                  disabled={isSubmitting || !newPrayer.trim()} 
+                  className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-xl font-serif disabled:opacity-50 transition-all"
+                >
                   {isSubmitting ? "..." : "Amen"}
                 </button>
               </div>
@@ -306,6 +356,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Toast */}
       {toast.visible && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[110] bg-[#2a0a0a] border border-[#C5B358]/30 px-8 py-4 rounded-full text-[#e8dcb5] flex items-center gap-4 shadow-2xl animate-fade-in">
           <Info className="w-5 h-5 text-[#C5B358]" />
