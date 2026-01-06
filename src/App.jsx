@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Flame, X, Info, Loader2, BookOpen, Clock, User, LogOut, LayoutDashboard } from 'lucide-react';
-import { signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { Flame, X, Info, Loader2, BookOpen, Clock, User, LogOut, LayoutDashboard, Trash2 } from 'lucide-react';
+import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 
-// Import from your firebase.js
+// Ensure these are exported from your firebase.js
 import { auth, db, appId, googleProvider } from './firebase';
+
+const ADMINS = ['erivers@salpointe.org', 'cptak@salpointe.org'];
 
 const WEEKLY_PRAYERS = {
   1: { morning: { title: "Morning Offering", text: "O Jesus, through the Immaculate Heart of Mary, I offer you my prayers, works, joys, and sufferings of this day in union with the holy sacrifice of the Mass throughout the world. Amen." }, afternoon: { title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Amen." }},
@@ -21,7 +23,7 @@ const styles = `
   .font-sans { font-family: 'Inter', sans-serif; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  .candle-glow { filter: drop-shadow(0 0 12px rgba(197,179,88,0.6)); }
+  .candle-glow { filter: drop-shadow(0 0 12px rgba(197, 179, 88, 0.6)); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
 `;
@@ -37,15 +39,12 @@ export default function App() {
   const [dailyPrayer, setDailyPrayer] = useState(null);
 
   useEffect(() => {
-    // Handle redirect result
-    getRedirectResult(auth).catch(() => showToast("Login failed. Check your Salpointe email."));
-
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u && u.email.toLowerCase().endsWith('@salpointe.org')) {
         setUser(u);
       } else if (u) {
         signOut(auth);
-        showToast("Access restricted to @salpointe.org");
+        showToast("Please use your @salpointe.org email.");
       } else {
         setUser(null);
       }
@@ -69,7 +68,7 @@ export default function App() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPrayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
-    }, () => setLoading(false));
+    }, (err) => setLoading(false));
     return () => unsubscribe();
   }, [appId]);
 
@@ -80,28 +79,47 @@ export default function App() {
 
   const handleAuth = async () => {
     if (user) await signOut(auth);
-    else await signInWithRedirect(auth, googleProvider);
+    else {
+      try {
+        // Switched back to Popup for standard UX, ensure domains are white-listed
+        await signInWithPopup(auth, googleProvider);
+      } catch (e) {
+        console.error(e);
+        showToast("Sign in failed. Use Salpointe email.");
+      }
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Remove this intention?")) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prayers', id));
+      showToast("Intention removed.");
+    } catch (e) {
+      showToast("Delete failed.");
+    }
   };
 
   const handleSubmit = async () => {
     if (!newPrayer.trim() || isSubmitting || !user) return;
     setIsSubmitting(true);
     try {
-      // Data exactly matching security rule expectations
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), {
         text: newPrayer.trim(),
         uid: user.uid,
         userName: user.displayName || user.email.split('@')[0],
+        userEmail: user.email,
         timestamp: serverTimestamp()
       });
       setNewPrayer(''); setIsModalOpen(false); showToast("Intention shared.");
     } catch (e) {
-      console.error("Firestore Error:", e);
-      showToast("Error: Permission Denied. Ensure you are signed in with @salpointe.org");
+      showToast("Error: Check login or connection.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const isAdmin = user && ADMINS.includes(user.email.toLowerCase());
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden">
@@ -110,7 +128,7 @@ export default function App() {
         <div className="flex items-center gap-6">
           <img src="/lancer-75.png" alt="75" className="h-10 w-auto" onError={(e) => e.target.style.display='none'} />
           <span className="text-[#e8dcb5] text-xl font-serif italic">Salpointe Prayers</span>
-          <a href="https://teacher-agenda.vercel.app" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-[10px] uppercase tracking-widest font-semibold">
+          <a href="https://teacher-agenda.vercel.app" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-[10px] uppercase tracking-widest font-semibold hover:text-white">
             <LayoutDashboard className="w-3.5 h-3.5" /> Agenda
           </a>
         </div>
@@ -129,7 +147,7 @@ export default function App() {
             <p className="text-slate-500 font-serif italic text-lg mb-8">Our Lady of Mount Carmel, pray for us.</p>
             {dailyPrayer && (
               <div className="p-10 rounded-2xl bg-white/5 border border-white/10 shadow-2xl animate-fade-in">
-                <div className="flex items-center gap-2 text-[#C5B358] mb-6 opacity-90 uppercase tracking-widest text-xs font-bold">
+                <div className="flex items-center gap-2 text-[#C5B358] mb-6 uppercase tracking-widest text-xs font-bold">
                   <Clock className="w-4 h-4" /> {dailyPrayer.period}
                 </div>
                 <h2 className="text-3xl text-[#e8dcb5] font-serif mb-6 italic">{dailyPrayer.title}</h2>
@@ -137,7 +155,7 @@ export default function App() {
               </div>
             )}
           </div>
-          <div className="border-t border-white/10 pt-6 opacity-40 hover:opacity-100 transition-opacity duration-1000 cursor-default">
+          <div className="border-t border-white/10 pt-6 opacity-40 hover:opacity-100 transition-opacity duration-1000">
             <p className="text-sm text-[#e8dcb5] font-serif italic mb-1">"God is good and I can feel His presence."</p>
             <p className="text-[10px] text-slate-500 tracking-widest uppercase">In Loving Memory of Deacon Scott Pickett</p>
           </div>
@@ -148,15 +166,22 @@ export default function App() {
           <div className="flex-grow overflow-y-auto p-8 no-scrollbar space-y-10">
             {loading ? <div className="h-full flex items-center justify-center opacity-30"><Loader2 className="animate-spin" /></div> : 
               prayers.map((p, i) => (
-                <div key={p.id} className="flex gap-6 animate-fade-in">
+                <div key={p.id} className="flex gap-6 animate-fade-in group">
                   <div className="w-2 h-2 rounded-full bg-[#C5B358]/60 mt-2"></div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col flex-grow">
                     <p className="text-slate-300 font-serif text-2xl italic leading-snug">"{p.text}"</p>
-                    <div className="flex items-center gap-3 mt-3">
-                      <span className="text-sm text-[#C5B358]/80 font-serif italic">— {p.userName || "Lancer"}</span>
-                      <span className="text-[9px] text-slate-700 uppercase tracking-widest">
-                        {p.timestamp ? p.timestamp.toDate().toLocaleDateString(undefined, {month:'short', day:'numeric'}) : "Just now"}
-                      </span>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-[#C5B358]/80 font-serif italic">— {p.userName}</span>
+                        <span className="text-[9px] text-slate-700 uppercase tracking-widest">
+                          {p.timestamp ? p.timestamp.toDate().toLocaleDateString(undefined, {month:'short', day:'numeric'}) : "..."}
+                        </span>
+                      </div>
+                      {isAdmin && (
+                        <button onClick={() => handleDelete(p.id)} className="text-red-900/40 hover:text-red-600 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -174,17 +199,17 @@ export default function App() {
         <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-slate-900 border border-white/10 p-12 rounded-3xl w-full max-w-2xl shadow-2xl">
             <h2 className="text-3xl text-[#e8dcb5] font-serif mb-8 text-center italic">Offer your intention</h2>
-            <textarea value={newPrayer} onChange={(e) => setNewPrayer(e.target.value)} rows="4" maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-xl p-6 text-slate-100 text-2xl font-serif outline-none" placeholder="..." />
+            <textarea value={newPrayer} onChange={(e) => setNewPrayer(e.target.value)} rows="4" maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-xl p-6 text-slate-100 text-2xl font-serif outline-none focus:border-[#C5B358]" placeholder="..." />
             <div className="flex justify-between items-center mt-8">
               <span className="text-slate-500 text-sm">{newPrayer.length}/200</span>
-              <div className="flex gap-4"><button onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-slate-500 uppercase tracking-widest text-xs">Cancel</button><button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-xl font-serif">{isSubmitting ? "..." : "Amen"}</button></div>
+              <div className="flex gap-4"><button onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-slate-500 uppercase tracking-widest text-xs">Cancel</button><button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-xl font-serif">Amen</button></div>
             </div>
           </div>
         </div>
       )}
 
       {toast.visible && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[110] bg-[#2a0a0a] border border-[#C5B358]/30 px-8 py-4 rounded-full text-[#e8dcb5] flex items-center gap-4 shadow-2xl animate-fade-in">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[110] bg-[#2a0a0a] border border-[#C5B358]/30 px-8 py-4 rounded-full text-[#e8dcb5] flex items-center gap-4 shadow-2xl">
           <Info className="w-5 h-5 text-[#C5B358]" />
           <span className="text-lg font-serif italic">{toast.message}</span>
         </div>
