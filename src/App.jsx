@@ -3,7 +3,7 @@ import { Flame, X, Info, Loader2, BookOpen, Clock, User, LogOut, LayoutDashboard
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
 
-// Ensure these are exported from your firebase.js
+// Verified exports from your firebase.js
 import { auth, db, appId, googleProvider } from './firebase';
 
 const ADMINS = ['erivers@salpointe.org', 'cptak@salpointe.org'];
@@ -11,15 +11,15 @@ const ADMINS = ['erivers@salpointe.org', 'cptak@salpointe.org'];
 const WEEKLY_PRAYERS = {
   1: { 
     morning: { title: "Morning Offering", text: "O Jesus, through the Immaculate Heart of Mary, I offer you my prayers, works, joys, and sufferings of this day in union with the holy sacrifice of the Mass throughout the world. Amen." }, 
-    afternoon: { title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Amen." } 
+    afternoon: { title: "Our Father", text: "Our Father, who art in heaven, hallowed be thy name; thy kingdom come, thy will be done, on earth as it is in heaven. Give us this day our daily bread and forgive us our trespasses. Amen." } 
   },
   2: { 
     morning: { title: "St. Teresa of Avila Prayer", text: "Grant that in all things, great and small, today and all the days of my life, I may do whatever You require of me. Help me respond to the slightest prompting of Your Grace. Amen." }, 
-    afternoon: { title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be. Amen." } 
+    afternoon: { title: "Glory Be", text: "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen." } 
   },
   3: { 
     morning: { title: "Memorare", text: "Remember, O most gracious Virgin Mary, that never was it known that anyone who fled to thy protection, implored thy help, or sought thy intercession was left unaided. Amen." }, 
-    afternoon: { title: "Hail Mary", text: "Hail Mary, full of grace, the Lord is with thee. Blessed art thou among women and blessed is the fruit of thy womb, Jesus. Amen." } 
+    afternoon: { title: "Hail Mary", text: "Hail Mary, full of grace, the Lord is with thee. Blessed art thou among women and blessed is the fruit of thy womb, Jesus. Holy Mary, mother of God, pray for us. Amen." } 
   },
   4: { 
     morning: { title: "Prayer to Our Guardian Angel", text: "Angel of God, my guardian dear, to whom God’s love commits me here, ever this day be at my side to light and guard, to rule and guide. Amen." }, 
@@ -65,13 +65,14 @@ export default function App() {
 
   const toastTimerRef = useRef(null);
 
+  // --- Auth & Initial Logic ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u && u.email?.toLowerCase().endsWith('@salpointe.org')) {
         setUser(u);
       } else if (u) {
         signOut(auth);
-        showToast("Access restricted to @salpointe.org");
+        showToast("Please use your @salpointe.org email.");
       } else {
         setUser(null);
       }
@@ -98,6 +99,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // --- Firestore Subscription ---
   useEffect(() => {
     if (!db || !appId) return;
     const q = query(
@@ -109,12 +111,13 @@ export default function App() {
       setPrayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     }, (err) => {
-      console.error("Snapshot Error:", err);
+      console.error("Firestore Error:", err);
       setLoading(false);
     });
     return () => unsubscribe();
   }, [appId]);
 
+  // --- Helpers ---
   const showToast = (msg) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ message: String(msg), visible: true });
@@ -128,7 +131,7 @@ export default function App() {
       try {
         await signInWithPopup(auth, googleProvider);
       } catch (e) {
-        showToast("Sign in failed. Use your school account.");
+        showToast("Sign in failed. Check school account.");
       }
     }
   };
@@ -139,7 +142,7 @@ export default function App() {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prayers', id));
       showToast("Intention removed.");
     } catch (e) {
-      showToast("Permission denied.");
+      showToast("Delete failed. Admin required.");
     }
   };
 
@@ -147,7 +150,6 @@ export default function App() {
     if (!newPrayer.trim() || isSubmitting || !user) return;
     setIsSubmitting(true);
     try {
-      const prayersRef = collection(db, 'artifacts', appId, 'public', 'data', 'prayers');
       const payload = {
         text: newPrayer.trim(),
         uid: user.uid,
@@ -155,13 +157,13 @@ export default function App() {
         userEmail: user.email,
         timestamp: serverTimestamp()
       };
-      await addDoc(prayersRef, payload);
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), payload);
       setNewPrayer('');
       setIsModalOpen(false);
       showToast("Intention shared.");
     } catch (e) {
-      console.error("Submission Error:", e);
-      showToast("Error: Check connection or login.");
+      console.error("Submit Error:", e);
+      showToast(`Error: ${e.code || "Check login"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -182,17 +184,30 @@ export default function App() {
       <nav className="relative z-20 w-full p-6 flex justify-between items-center border-b border-white/5 bg-slate-950/50 backdrop-blur-md">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
-            <img src="/lancer-75.png" alt="75" className="h-10 w-auto" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img 
+              src="/lancer-75.png" 
+              alt="75" 
+              className="h-10 w-auto opacity-90" 
+              onError={(e) => { e.target.style.display = 'none'; }} 
+            />
             <div className="h-6 w-px bg-white/10" />
             <span className="text-[#e8dcb5] text-xl font-serif italic tracking-wide">Salpointe Prayers</span>
           </div>
-          <a href="https://teacher-agenda.vercel.app" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-[10px] uppercase tracking-widest font-semibold hover:text-white transition-all">
+          <a 
+            href="https://teacher-agenda.vercel.app" 
+            target="_blank" 
+            rel="noreferrer" 
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-[10px] uppercase tracking-widest font-semibold hover:text-white transition-all"
+          >
             <LayoutDashboard className="w-3.5 h-3.5" /> Agenda
           </a>
         </div>
         <div className="flex items-center gap-4">
           {user && <span className="text-[#e8dcb5]/60 text-xs font-serif italic">{user.displayName}</span>}
-          <button onClick={handleAuth} className="text-[10px] tracking-widest uppercase text-slate-500 hover:text-white transition-colors">
+          <button 
+            onClick={handleAuth} 
+            className="text-[10px] tracking-widest uppercase text-slate-500 hover:text-white transition-colors"
+          >
             {user ? "Sign Out" : "Lancer Sign In"}
           </button>
         </div>
@@ -229,39 +244,43 @@ export default function App() {
           <div className="flex-grow overflow-y-auto p-8 no-scrollbar space-y-10">
             {loading ? (
               <div className="h-full flex items-center justify-center opacity-30"><Loader2 className="animate-spin" /></div>
+            ) : prayers.length === 0 ? (
+              <p className="text-center text-slate-600 font-serif italic mt-20">The chapel is quiet. Be the first to share.</p>
             ) : (
-              prayers.length === 0 ? (
-                <p className="text-center text-slate-600 font-serif italic mt-20">The chapel is quiet. Be the first to share.</p>
-              ) : (
-                prayers.map((p, i) => (
-                  <div key={p.id} className="flex gap-6 animate-fade-in group">
-                    <div className="w-2 h-2 rounded-full bg-[#C5B358]/60 mt-2" />
-                    <div className="flex flex-col flex-grow">
-                      <p className="text-slate-300 font-serif text-2xl italic leading-snug">"{p.text}"</p>
-                      <div className="flex items-center justify-between mt-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm text-[#C5B358]/80 font-serif italic">— {p.userName}</span>
-                          <span className="text-[9px] text-slate-700 uppercase tracking-widest">
-                            {p.timestamp ? p.timestamp.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "Just now"}
-                          </span>
-                        </div>
-                        {isAdmin && (
-                          <button onClick={() => handleDelete(p.id)} className="text-red-900/40 hover:text-red-600 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+              prayers.map((p, i) => (
+                <div key={p.id} className="flex gap-6 animate-fade-in group">
+                  <div className="w-2 h-2 rounded-full bg-[#C5B358]/60 mt-2" />
+                  <div className="flex flex-col flex-grow">
+                    <p className="text-slate-300 font-serif text-2xl italic leading-snug">"{p.text}"</p>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-[#C5B358]/80 font-serif italic">— {p.userName}</span>
+                        <span className="text-[9px] text-slate-700 uppercase tracking-widest">
+                          {p.timestamp ? p.timestamp.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : "Just now"}
+                        </span>
                       </div>
+                      {isAdmin && (
+                        <button 
+                          onClick={() => handleDelete(p.id)} 
+                          className="text-red-900/40 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                ))
-              )
+                </div>
+              ))
             )}
           </div>
         </div>
       </main>
 
       <div className="fixed bottom-10 right-10 z-50">
-        <button onClick={() => { user ? setIsModalOpen(true) : handleAuth(); }} className="w-20 h-20 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
+        <button 
+          onClick={() => { user ? setIsModalOpen(true) : handleAuth(); }} 
+          className="w-20 h-20 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform"
+        >
           <Flame className="w-10 h-10 text-[#C5B358] candle-glow" />
         </button>
       </div>
@@ -281,8 +300,17 @@ export default function App() {
             <div className="flex justify-between items-center mt-8">
               <span className="text-slate-500 text-sm tracking-widest">{newPrayer.length}/200</span>
               <div className="flex gap-4">
-                <button onClick={() => { setIsModalOpen(false); }} className="px-8 py-3 text-slate-500 uppercase tracking-widest text-xs hover:text-white transition-colors">Cancel</button>
-                <button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-xl font-serif disabled:opacity-50 transition-all">
+                <button 
+                  onClick={() => { setIsModalOpen(false); }} 
+                  className="px-8 py-3 text-slate-500 uppercase tracking-widest text-xs hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSubmit} 
+                  disabled={isSubmitting || !newPrayer.trim()} 
+                  className="bg-[#681818] text-[#e8dcb5] px-12 py-3 rounded-full text-xl font-serif disabled:opacity-50 transition-all"
+                >
                   {isSubmitting ? "..." : "Amen"}
                 </button>
               </div>
