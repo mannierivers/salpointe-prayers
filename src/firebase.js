@@ -2,31 +2,56 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA6hQMpWLHqk73j1gLFwigS5th4qP-9AEI",
-  authDomain: "salpointe-prayers.firebaseapp.com",
-  projectId: "salpointe-prayers",
-  storageBucket: "salpointe-prayers.firebasestorage.app",
-  messagingSenderId: "606550957860",
-  appId: "1:606550957860:web:082ccacd60d6f75cc21db1"
+/**
+ * FIREBASE CONFIGURATION
+ * We use environment variables for local dev and 
+ * check for a global config object for production "Artifact" environments.
+ */
+const getFirebaseConfig = () => {
+  // 1. Check for global production config (injected by hosting)
+  if (typeof window !== 'undefined' && window.__firebase_config) {
+    return typeof window.__firebase_config === 'string' 
+      ? JSON.parse(window.__firebase_config) 
+      : window.__firebase_config;
+  }
+
+  // 2. Use Environment Variables (Vite standard)
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
+  };
 };
 
-// Initialize Firebase
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Initialize Firebase only once
+const app = !getApps().length ? initializeApp(getFirebaseConfig()) : getApp();
 
-// Configure Google Provider
-const googleProvider = new GoogleAuthProvider();
+// Export Services
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+// CONFIGURE GOOGLE AUTH
+export const googleProvider = new GoogleAuthProvider();
+
+// Security: Enforce Salpointe domain in the Google Auth window
 googleProvider.setCustomParameters({
-  hd: "salpointe.org" // Forces the selector to prioritize school accounts
+  hd: "salpointe.org",
+  prompt: "select_account" // Forces account picker to ensure they pick the school email
 });
 
-// App ID Logic - Critical for the database path
-const rawAppId = (typeof window !== 'undefined' && window.__app_id) 
-  ? window.__app_id 
-  : 'salpointe-chapel'; // Default folder name
+/**
+ * APP ID LOGIC
+ * Determines which "folder" the intentions go into.
+ */
+const getAppId = () => {
+  const rawId = (typeof window !== 'undefined' && window.__app_id) 
+    ? window.__app_id 
+    : 'salpointe-chapel-v1';
+  
+  return rawId.replace(/\//g, '_'); // Sanitize for Firestore paths
+};
 
-const appId = rawAppId.replace(/\//g, '_');
-
-export { app, auth, db, googleProvider, appId };
+export const appId = getAppId();
