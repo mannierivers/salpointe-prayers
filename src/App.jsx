@@ -51,12 +51,17 @@ const styles = `
   .font-sans { font-family: 'Inter', sans-serif; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  .candle-glow { filter: drop-shadow(0 0 20px rgba(197, 179, 88, 0.4)); }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-  .animate-fade-in { animation: fadeIn 1s ease-out forwards; }
+  .candle-glow { filter: drop-shadow(0 0 15px rgba(197, 179, 88, 0.5)); }
+  
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+  
   @keyframes softSlowFade { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: blur(0); } }
   .animate-soft-motion { animation: softSlowFade 1.2s ease-in-out forwards; }
-  .sanctuary-card { background: radial-gradient(circle at top, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 100%); }
+
+  .sanctuary-card {
+    background: radial-gradient(circle at top, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+  }
 `;
 
 export default function App() {
@@ -71,7 +76,7 @@ export default function App() {
   const [currentPrayerIndex, setCurrentPrayerIndex] = useState(0);
   const [actualNowIndex, setActualNowIndex] = useState(0);
 
-  // Admin Dashboard States
+  // Admin States
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [specialPrayer, setSpecialPrayer] = useState(null);
   const [adminDate, setAdminDate] = useState(new Date().toISOString().split('T')[0]);
@@ -92,10 +97,7 @@ export default function App() {
       }
     });
 
-    // President Message: Auto-hide after 3 seconds
-    const introTimer = setTimeout(() => {
-      setIsIntroOpen(false);
-    }, 3500);
+    const introTimer = setTimeout(() => { setIsIntroOpen(false); }, 3500);
 
     const now = new Date();
     let day = now.getDay();
@@ -117,7 +119,7 @@ export default function App() {
 
   useEffect(() => {
     if (!db || !appId) return;
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), orderBy('timestamp', 'desc'), limit(30));
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'prayers'), orderBy('timestamp', 'desc'), limit(20));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPrayers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
@@ -152,7 +154,7 @@ export default function App() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Remove this community intention?")) return;
+    if (!window.confirm("Remove intention?")) return;
     try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prayers', id)); showToast("Removed."); } 
     catch (e) { showToast("Error."); }
   };
@@ -178,139 +180,135 @@ export default function App() {
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden select-none">
       <style dangerouslySetInnerHTML={{ __html: styles }} />
       
+      {/* Dynamic Background */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-0 w-full h-2/3 bg-gradient-to-b from-[#1a0a0a] via-slate-950 to-slate-950 opacity-80" />
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-[#1a0a0a] via-slate-950 to-slate-950 opacity-80" />
         <div className="absolute -bottom-48 -right-48 w-[60vw] h-[60vw] bg-[#681818]/5 rounded-full blur-[160px]" />
       </div>
 
-      <nav className="relative z-20 w-full p-6 px-10 flex justify-between items-center border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
-        <div className="flex items-center gap-10">
-          <div className="flex items-center gap-4">
-            <img src="/lancer-75.png" alt="75" className="h-12 w-auto opacity-90" />
-            <div className="h-8 w-px bg-white/10" />
-            <div className="flex flex-col">
-              <span className="text-[#e8dcb5] text-2xl font-serif italic tracking-wide leading-none">Salpointe Prayers</span>
-              <span className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-1">Community Sanctuary</span>
-            </div>
+      {/* Navigation - Slimmer for Vertical Space */}
+      <nav className="relative z-20 w-full p-4 px-8 flex justify-between items-center border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <img src="/lancer-75.png" alt="75" className="h-10 w-auto opacity-90" />
+            <div className="h-6 w-px bg-white/10" />
+            <span className="text-[#e8dcb5] text-xl font-serif italic tracking-wide">Salpointe Prayers</span>
           </div>
-          <a href="https://teacher-agenda.vercel.app" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] uppercase tracking-widest font-bold hover:text-white hover:bg-white/10 transition-all">
-            <LayoutDashboard className="w-4 h-4" /> Teacher Agenda
+          <a href="https://teacher-agenda.vercel.app" target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-400 text-[10px] uppercase tracking-widest font-bold hover:text-white transition-all">
+            <LayoutDashboard className="w-3.5 h-3.5" /> Agenda
           </a>
         </div>
 
-        <div className="flex items-center gap-8">
-          <button onClick={() => setIsIntroOpen(true)} className={`transition-all duration-500 p-2 rounded-full hover:bg-white/5 ${isIntroOpen ? 'opacity-0 scale-0' : 'opacity-60 scale-100'}`}>
-            <Heart className="w-6 h-6 text-[#e8dcb5]" />
+        <div className="flex items-center gap-6">
+          <button onClick={() => setIsIntroOpen(true)} className={`transition-all duration-500 p-2 ${isIntroOpen ? 'opacity-0' : 'opacity-60'}`}>
+            <Heart className="w-5 h-5 text-[#e8dcb5]" />
           </button>
-
           {isAdmin && (
-             <button onClick={() => setIsAdminPanelOpen(true)} className="flex items-center gap-2 px-5 py-2 rounded-full bg-[#C5B358]/10 border border-[#C5B358]/30 text-[#C5B358] text-[10px] uppercase font-bold tracking-widest hover:bg-[#C5B358]/20 transition-all">
-               <Settings className="w-4 h-4" /> Command Center
+             <button onClick={() => setIsAdminPanelOpen(true)} className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#C5B358]/10 border border-[#C5B358]/30 text-[#C5B358] text-[9px] uppercase font-bold tracking-widest hover:bg-[#C5B358]/20 transition-all">
+               <Settings className="w-3.5 h-3.5" /> Admin
              </button>
           )}
-
-          <button onClick={handleAuth} className="text-xs tracking-[0.2em] uppercase text-slate-500 hover:text-[#C5B358] transition-colors">
+          <button onClick={handleAuth} className="text-[10px] tracking-widest uppercase text-slate-500 hover:text-[#C5B358] transition-colors">
             {user ? "Sign Out" : "Lancer Login"}
           </button>
         </div>
       </nav>
 
-      {/* FULL-STAGE LITURGY */}
-      <main className="relative z-10 flex-grow flex flex-col items-center justify-center p-12 transition-all duration-1000">
+      {/* MAIN SANCTUARY AREA - Optimized Spacing */}
+      <main className="relative z-10 flex-grow flex flex-col items-center justify-center p-6 md:p-10">
           <div className="max-w-6xl w-full relative animate-fade-in">
             
-            <div className="group relative sanctuary-card border border-white/10 rounded-[60px] p-16 md:p-20 shadow-2xl backdrop-blur-sm overflow-hidden">
+            <div className="group relative sanctuary-card border border-white/10 rounded-[40px] p-10 md:p-14 shadow-2xl backdrop-blur-sm overflow-hidden flex flex-col">
               
-              <button onClick={() => setCurrentPrayerIndex(prev => prev === 0 ? 9 : prev - 1)} className="absolute left-6 top-1/2 -translate-y-1/2 p-4 text-slate-700 hover:text-[#C5B358] transition-all hidden lg:block bg-black/20 rounded-full hover:bg-black/40">
-                <ChevronLeft className="w-12 h-12" />
+              {/* Navigation Arrows */}
+              <button onClick={() => setCurrentPrayerIndex(prev => prev === 0 ? 9 : prev - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 p-3 text-slate-700 hover:text-[#C5B358] transition-all hidden lg:block bg-black/10 rounded-full">
+                <ChevronLeft className="w-10 h-10" />
               </button>
-              <button onClick={() => setCurrentPrayerIndex(prev => prev === 9 ? 0 : prev + 1)} className="absolute right-6 top-1/2 -translate-y-1/2 p-4 text-slate-700 hover:text-[#C5B358] transition-all hidden lg:block bg-black/20 rounded-full hover:bg-black/40">
-                <ChevronRight className="w-12 h-12" />
+              <button onClick={() => setCurrentPrayerIndex(prev => prev === 9 ? 0 : prev + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 p-3 text-slate-700 hover:text-[#C5B358] transition-all hidden lg:block bg-black/10 rounded-full">
+                <ChevronRight className="w-10 h-10" />
               </button>
 
               <div className="flex flex-col items-center">
-                <div className="flex items-center gap-4 mb-10">
-                  <div className={`flex items-center gap-3 px-8 py-2.5 rounded-full border ${isViewingCurrent ? 'border-[#C5B358]/40 text-[#C5B358]' : 'border-white/10 text-slate-500'} uppercase tracking-[0.5em] text-[11px] font-bold shadow-inner`}>
-                    <Clock className="w-4 h-4" /> {activeSlot.label} {isViewingCurrent && "(Current)"}
+                {/* Meta Header - Tightened */}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className={`flex items-center gap-2 px-6 py-1.5 rounded-full border ${isViewingCurrent ? 'border-[#C5B358]/40 text-[#C5B358]' : 'border-white/10 text-slate-500'} uppercase tracking-[0.4em] text-[10px] font-bold`}>
+                    <Clock className="w-3.5 h-3.5" /> {activeSlot.label} {isViewingCurrent && "(Current)"}
                   </div>
                   {!isViewingCurrent && (
-                    <button onClick={() => setCurrentPrayerIndex(actualNowIndex)} className="flex items-center gap-2 text-[#C5B358]/60 hover:text-white transition-colors text-[10px] uppercase tracking-widest bg-white/5 px-6 py-2.5 rounded-full border border-white/5">
-                      <RotateCcw className="w-3.5 h-3.5" /> Return to Now
+                    <button onClick={() => setCurrentPrayerIndex(actualNowIndex)} className="flex items-center gap-2 text-[#C5B358]/60 hover:text-white text-[9px] uppercase tracking-widest bg-white/5 px-4 py-1.5 rounded-full border border-white/5">
+                      <RotateCcw className="w-3 h-3" /> Reset
                     </button>
                   )}
                 </div>
 
-                <h2 className="text-6xl md:text-7xl text-[#e8dcb5] font-serif mb-12 italic text-center tracking-tight leading-none">{displayPrayer.title}</h2>
+                {/* Prayer Title - Scaled */}
+                <h2 className="text-4xl md:text-5xl text-[#e8dcb5] font-serif mb-8 italic text-center leading-none tracking-tight">{displayPrayer.title}</h2>
                 
-                <div className="w-full max-h-[50vh] overflow-y-auto no-scrollbar px-10">
-                   <p className="text-slate-200 font-serif text-4xl md:text-5xl leading-[1.45] text-center italic first-letter:text-9xl first-letter:text-[#C5B358] first-letter:font-bold first-letter:mr-6">
+                {/* Main Text - Optimized line height and size for Promethean */}
+                <div className="w-full max-h-[42vh] overflow-y-auto no-scrollbar px-6 text-center">
+                   <p className="text-slate-200 font-serif text-2xl md:text-3xl lg:text-4xl leading-[1.35] italic first-letter:text-8xl first-letter:text-[#C5B358] first-letter:font-bold first-letter:mr-5">
                     {displayPrayer.text}
                   </p>
                 </div>
 
-                <div className="mt-16 pt-10 border-t border-white/5 w-full max-w-2xl text-center">
-                    <p className="text-[#C5B358] font-serif text-4xl italic tracking-wide animate-pulse duration-[4000ms]">
+                {/* THE REFRAIN - Unified with Card */}
+                <div className="mt-10 pt-6 border-t border-white/5 w-full max-w-xl text-center">
+                    <p className="text-[#C5B358] font-serif text-3xl italic tracking-wide animate-pulse duration-[5000ms]">
                       "Our Lady of Mount Carmel, pray for us."
                     </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-16 flex flex-col items-center opacity-40 hover:opacity-100 transition-opacity duration-1000">
-              <div className="flex items-center gap-4 mb-2">
-                <div className="h-px w-20 bg-gradient-to-l from-[#C5B358]/50 to-transparent" />
-                <p className="text-xl text-[#e8dcb5] font-serif italic whitespace-nowrap">"God is good and I can feel His presence."</p>
-                <div className="h-px w-20 bg-gradient-to-r from-[#C5B358]/50 to-transparent" />
+            {/* Memorial - Slimmer Footer Area */}
+            <div className="mt-8 flex flex-col items-center opacity-40 hover:opacity-100 transition-opacity duration-1000">
+              <div className="flex items-center gap-4 mb-1">
+                <div className="h-px w-12 bg-[#C5B358]/30" />
+                <p className="text-lg text-[#e8dcb5] font-serif italic">"God is good and I can feel His presence."</p>
+                <div className="h-px w-12 bg-[#C5B358]/30" />
               </div>
-              <p className="text-xs text-slate-500 tracking-[0.4em] uppercase font-semibold">Deacon Scott Pickett • 1960–2024</p>
+              <p className="text-[9px] text-slate-500 tracking-[0.4em] uppercase font-semibold">Deacon Scott Pickett • 1960–2024</p>
             </div>
           </div>
       </main>
 
-      {/* ADMIN COMMAND CENTER: Full Dashboard */}
+      {/* ADMIN PANEL - Split View */}
       {isAdminPanelOpen && (
         <div className="fixed inset-0 z-[150] flex justify-end">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsAdminPanelOpen(false)} />
-          <div className="relative w-full max-w-5xl bg-[#0a0a0a] border-l border-white/10 h-full p-10 md:p-14 shadow-2xl flex flex-col animate-fade-in">
-            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-transform active:scale-90"><X size={32}/></button>
-            <h2 className="text-3xl text-[#e8dcb5] font-serif italic mb-10 flex items-center gap-4 border-b border-white/5 pb-6">
-              <Settings className="text-[#C5B358]" /> Lancer Command Center
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsAdminPanelOpen(false)} />
+          <div className="relative w-full max-w-5xl bg-[#0a0a0a] border-l border-white/10 h-full p-10 shadow-2xl flex flex-col animate-fade-in">
+            <button onClick={() => setIsAdminPanelOpen(false)} className="absolute top-6 right-8 text-slate-500 hover:text-white transition-transform active:scale-90"><X size={32}/></button>
+            <h2 className="text-2xl text-[#e8dcb5] font-serif italic mb-8 border-b border-white/5 pb-4 flex items-center gap-4">
+              <Settings className="text-[#C5B358]" /> Admin Command Center
             </h2>
 
-            <div className="flex flex-grow gap-12 overflow-hidden">
+            <div className="flex flex-grow gap-10 overflow-hidden">
                 {/* LEFT: Liturgy Scheduler */}
                 <div className="w-1/2 flex flex-col overflow-y-auto no-scrollbar">
-                  <h3 className="text-[10px] uppercase tracking-widest text-[#C5B358] font-bold mb-6 flex items-center gap-2"><Calendar className="w-4 h-4"/> Schedule Future Liturgy</h3>
-                  <div className="space-y-6 bg-white/[0.03] p-8 rounded-[30px] border border-white/10 shadow-xl">
-                    <div className="flex flex-col gap-2">
-                       <label className="text-[9px] uppercase text-slate-500 font-bold ml-2">Date to Display</label>
-                       <input type="date" value={adminDate} onChange={e => setAdminDate(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl p-4 text-white focus:border-[#C5B358] outline-none text-lg font-serif" />
-                    </div>
-                    <input value={adminTitle} onChange={e => setAdminTitle(e.target.value)} className="w-full bg-black border border-white/10 rounded-xl p-4 text-[#e8dcb5] focus:border-[#C5B358] outline-none text-2xl font-serif" placeholder="Prayer Title" />
-                    <textarea value={adminText} onChange={e => setAdminText(e.target.value)} rows="8" className="w-full bg-black border border-white/10 rounded-xl p-6 text-slate-100 focus:border-[#C5B358] outline-none resize-none no-scrollbar font-serif text-xl" placeholder="Full prayer text..." />
-                    <button onClick={handleAdminLiturgySave} disabled={isSubmitting} className="w-full py-5 bg-[#C5B358] text-black font-bold uppercase tracking-widest text-[11px] rounded-2xl flex items-center justify-center gap-2 hover:bg-white transition-all shadow-[0_0_30px_rgba(197,179,88,0.2)]">
-                      {isSubmitting ? <Loader2 className="animate-spin" /> : <Save className="w-5 h-5" />} Save for Classroom View
+                  <h3 className="text-[9px] uppercase tracking-widest text-[#C5B358] font-bold mb-4 flex items-center gap-2"><Calendar className="w-4 h-4"/> Schedule Liturgy</h3>
+                  <div className="space-y-4 bg-white/[0.03] p-6 rounded-[25px] border border-white/10">
+                    <input type="date" value={adminDate} onChange={e => setAdminDate(e.target.value)} className="w-full bg-black border border-white/10 rounded-lg p-3 text-white text-sm" />
+                    <input value={adminTitle} onChange={e => setAdminTitle(e.target.value)} className="w-full bg-black border border-white/10 rounded-lg p-3 text-[#e8dcb5] text-lg font-serif" placeholder="Title" />
+                    <textarea value={adminText} onChange={e => setAdminText(e.target.value)} rows="6" className="w-full bg-black border border-white/10 rounded-lg p-4 text-white text-sm font-serif" placeholder="Prayer text..." />
+                    <button onClick={handleAdminLiturgySave} disabled={isSubmitting} className="w-full py-3 bg-[#C5B358] text-black font-bold uppercase tracking-widest text-[10px] rounded-xl flex items-center justify-center gap-2 hover:bg-white transition-all">
+                      {isSubmitting ? <Loader2 className="animate-spin" /> : <Save size={16} />} Save to Board
                     </button>
                   </div>
                 </div>
 
                 {/* RIGHT: LIVE Intentions Manager */}
                 <div className="w-1/2 flex flex-col overflow-hidden border-l border-white/5 pl-8">
-                  <h3 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-6 flex items-center gap-2"><MessageCircle className="w-4 h-4"/> Live Community Intentions</h3>
-                  <div className="flex-grow overflow-y-auto pr-4 no-scrollbar space-y-4">
-                    {prayers.length === 0 ? (
-                      <p className="text-slate-600 italic text-center mt-10">No recent intentions.</p>
-                    ) : (
-                      prayers.map(p => (
-                        <div key={p.id} className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl flex justify-between items-start group hover:border-[#681818]/40 transition-all">
-                          <div>
-                            <p className="text-slate-300 font-serif italic text-lg leading-snug">"{p.text}"</p>
-                            <p className="text-[10px] text-slate-600 uppercase tracking-widest mt-2 font-semibold">— {p.userName}</p>
-                          </div>
-                          <button onClick={() => handleDelete(p.id)} className="p-2 bg-red-950/20 text-red-900/40 hover:text-red-500 hover:bg-red-950/40 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+                  <h3 className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-4 flex items-center gap-2"><MessageCircle className="w-4 h-4"/> Community Intentions</h3>
+                  <div className="flex-grow overflow-y-auto pr-4 no-scrollbar space-y-3">
+                    {prayers.map(p => (
+                      <div key={p.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex justify-between items-start group hover:border-[#681818]/40">
+                        <div>
+                          <p className="text-slate-300 font-serif italic text-sm">"{p.text}"</p>
+                          <p className="text-[8px] text-slate-600 uppercase tracking-widest mt-1">— {p.userName}</p>
                         </div>
-                      ))
-                    )}
+                        <button onClick={() => handleDelete(p.id)} className="p-1.5 text-red-900/40 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
                   </div>
                 </div>
             </div>
@@ -320,41 +318,40 @@ export default function App() {
 
       {/* INTRO: Jen Harris Message */}
       {isIntroOpen && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-12 animate-soft-motion">
-          <div className="max-w-4xl w-full bg-[#1e1e1e]/60 border border-[#C5B358]/20 rounded-[60px] shadow-2xl p-20 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-[#C5B358]/5 to-transparent pointer-events-none" />
-            <Heart className="w-16 h-16 text-[#C5B358] opacity-60 mx-auto mb-12 animate-pulse" />
-            <h2 className="text-sm uppercase tracking-[0.6em] text-slate-500 font-bold mb-12 italic">A Message from our President</h2>
-            <div className="space-y-12 text-[#e8dcb5] font-serif">
-              <p className="text-5xl leading-tight italic">"Please help strengthen our communication with God by focusing your mind, heart, and spirit in prayer."</p>
-              <p className="text-[#C5B358] text-5xl font-semibold italic">"Our Lady of Mount Carmel, pray for us."</p>
+        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-8 animate-soft-motion">
+          <div className="max-w-3xl w-full bg-[#1e1e1e]/60 border border-[#C5B358]/20 rounded-[50px] shadow-2xl p-12 text-center relative">
+            <Heart className="w-12 h-12 text-[#C5B358] opacity-60 mx-auto mb-8 animate-pulse" />
+            <h2 className="text-[10px] uppercase tracking-[0.5em] text-slate-500 font-bold mb-8 italic">A Message from our President</h2>
+            <div className="space-y-8 text-[#e8dcb5] font-serif">
+              <p className="text-3xl md:text-4xl leading-tight italic">"Please help strengthen our communication with God by focusing your mind, heart, and spirit in prayer."</p>
+              <p className="text-[#C5B358] text-4xl font-semibold italic">"Our Lady of Mount Carmel, pray for us."</p>
             </div>
-            <button onClick={() => setIsIntroOpen(false)} className="mt-20 px-20 py-6 bg-[#681818]/30 border border-[#C5B358]/30 text-[#e8dcb5] rounded-full font-serif text-3xl hover:bg-[#681818]/50 transition-all tracking-widest shadow-2xl">Enter the Chapel</button>
-            <div className="mt-16 text-[11px] uppercase tracking-widest text-slate-600 font-bold">Jen Harris • President of Salpointe Catholic</div>
+            <button onClick={() => setIsIntroOpen(false)} className="mt-12 px-16 py-4 bg-[#681818]/30 border border-[#C5B358]/30 text-[#e8dcb5] rounded-full font-serif text-xl hover:bg-[#681818]/50 transition-all shadow-2xl">Enter the Chapel</button>
+            <div className="mt-10 text-[9px] uppercase tracking-widest text-slate-600 font-bold">Jen Harris • President</div>
           </div>
         </div>
       )}
 
-      {/* ADMIN FAB: Add Intention */}
+      {/* ADMIN FAB */}
       {isAdmin && (
         <div className="fixed bottom-10 left-10 z-50">
-          <button onClick={() => setIsModalOpen(true)} className="w-20 h-20 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform shadow-[0_0_40px_rgba(104,24,24,0.3)]">
-            <Flame className="w-10 h-10 text-[#C5B358] candle-glow" />
+          <button onClick={() => setIsModalOpen(true)} className="w-16 h-16 rounded-full bg-[#2a0a0a] border-2 border-[#681818]/50 flex items-center justify-center shadow-2xl hover:scale-110 transition-transform">
+            <Flame className="w-8 h-8 text-[#C5B358] candle-glow" />
           </button>
         </div>
       )}
 
-      {/* INTENTION MODAL: For Admins */}
+      {/* INTENTION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[160] bg-black/90 flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-slate-900 border border-white/10 p-20 rounded-[50px] w-full max-w-4xl shadow-2xl animate-fade-in text-center">
-            <h2 className="text-5xl text-[#e8dcb5] font-serif mb-12 italic tracking-tight">Offer an intention</h2>
-            <textarea value={newPrayer} onChange={(e) => setNewPrayer(e.target.value)} rows="5" maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-3xl p-10 text-slate-100 text-4xl font-serif outline-none focus:border-[#C5B358] transition-all no-scrollbar italic leading-relaxed" placeholder="Type here..." />
-            <div className="flex justify-between items-center mt-12 px-6">
-              <span className="text-slate-500 text-xl tracking-widest font-sans uppercase font-light">{newPrayer.length}/200</span>
+          <div className="bg-slate-900 border border-white/10 p-12 rounded-[40px] w-full max-w-3xl shadow-2xl animate-fade-in text-center">
+            <h2 className="text-3xl text-[#e8dcb5] font-serif mb-8 italic tracking-tight">Offer an intention</h2>
+            <textarea value={newPrayer} onChange={(e) => setNewPrayer(e.target.value)} rows="4" maxLength={200} className="w-full bg-black/40 border border-white/10 rounded-2xl p-8 text-slate-100 text-2xl font-serif outline-none focus:border-[#C5B358] transition-all no-scrollbar italic leading-relaxed" placeholder="Type here..." />
+            <div className="flex justify-between items-center mt-10 px-6">
+              <span className="text-slate-500 text-sm tracking-widest font-sans uppercase">{newPrayer.length}/200</span>
               <div className="flex gap-8">
-                <button onClick={() => setIsModalOpen(false)} className="px-12 py-5 text-slate-500 uppercase tracking-widest text-sm font-bold hover:text-white transition-colors">Cancel</button>
-                <button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-24 py-6 rounded-full text-3xl font-serif hover:bg-[#801e1e] transition-all shadow-xl">Amen</button>
+                <button onClick={() => setIsModalOpen(false)} className="px-10 py-4 text-slate-500 uppercase tracking-widest text-xs font-bold hover:text-white transition-colors">Cancel</button>
+                <button onClick={handleSubmit} disabled={isSubmitting || !newPrayer.trim()} className="bg-[#681818] text-[#e8dcb5] px-16 py-4 rounded-full text-xl font-serif hover:bg-[#801e1e] transition-all">Amen</button>
               </div>
             </div>
           </div>
@@ -363,9 +360,9 @@ export default function App() {
 
       {/* TOASTS */}
       {toast.visible && (
-        <div className="fixed top-28 left-1/2 -translate-x-1/2 z-[300] bg-[#2a0a0a] border border-[#C5B358]/40 px-12 py-6 rounded-full text-[#e8dcb5] flex items-center gap-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] animate-fade-in backdrop-blur-md">
-          <Info className="w-8 h-8 text-[#C5B358]" />
-          <span className="text-2xl font-serif italic tracking-wide">{toast.message}</span>
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[300] bg-[#2a0a0a] border border-[#C5B358]/40 px-8 py-4 rounded-full text-[#e8dcb5] flex items-center gap-4 shadow-2xl animate-fade-in backdrop-blur-md">
+          <Info className="w-6 h-6 text-[#C5B358]" />
+          <span className="text-xl font-serif italic">{toast.message}</span>
         </div>
       )}
     </div>
